@@ -435,5 +435,21 @@ export const Move2EarnStore = {
       return true;
     }
     return false;
+  },
+
+  addMoveCoins(amount: number, description: string = 'Move Coins Bonus'): { success: boolean; newBalance: number } {
+    const newTx: WalletTransaction = {
+      id: `tx-${Date.now()}`,
+      user_id: 'demo-user-id',
+      amount,
+      transaction_type: 'earn',
+      reference_type: 'manual_adjustment',
+      description,
+      created_at: new Date().toISOString()
+    };
+    const txs = this.getTransactions();
+    txs.unshift(newTx);
+    setStored(STORAGE_KEYS.TRANSACTIONS, txs);
+    return { success: true, newBalance: this.getWalletSummary().balance };
   }
 };

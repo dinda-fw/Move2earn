@@ -23,7 +23,8 @@ import {
   Calendar, 
   Zap, 
   Activity, 
-  Check 
+  Check,
+  Pause
 } from 'lucide-react';
 import { Move2EarnStore } from '@/lib/store';
 import { DashboardSummary, Challenge, ActivitySummary } from '@/lib/types';
@@ -55,6 +56,7 @@ export default function DashboardPage() {
   const [isWebcamActive, setIsWebcamActive] = useState(false);
   const dashboardVideoRef = useRef<HTMLVideoElement | null>(null);
   const dashboardStreamRef = useRef<MediaStream | null>(null);
+  const dashboardGuideVideoRef = useRef<HTMLVideoElement | null>(null);
 
   // Load MoveIt media on mount
   useEffect(() => {
@@ -92,6 +94,18 @@ export default function DashboardPage() {
       }
     };
   }, [isWorkoutModalOpen]);
+
+  // Synchronize dashboard guide video with camera active state
+  useEffect(() => {
+    const videoEl = dashboardGuideVideoRef.current;
+    if (!videoEl) return;
+
+    if (isWorkoutModalOpen && isWebcamActive && !rewardClaimed) {
+      videoEl.play().catch(() => {});
+    } else {
+      videoEl.pause();
+    }
+  }, [isWorkoutModalOpen, isWebcamActive, rewardClaimed, currentMoveItMedia.url]);
 
   useEffect(() => {
     refreshData();
@@ -626,14 +640,14 @@ export default function DashboardPage() {
               <div className="rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center relative border border-gray-800">
                 {currentMoveItMedia.type === 'video' ? (
                   <video
+                    ref={dashboardGuideVideoRef}
                     src={currentMoveItMedia.url}
                     onError={(e) => {
                       if (e.currentTarget.src !== currentMoveItMedia.fallbackUrl) {
                         e.currentTarget.src = currentMoveItMedia.fallbackUrl;
                       }
                     }}
-                    autoPlay
-                    loop
+                    onEnded={handleFinishWorkout}
                     muted
                     playsInline
                     className="w-full h-full object-cover"
@@ -649,6 +663,19 @@ export default function DashboardPage() {
                     alt={currentMoveItMedia.title}
                     className="w-full h-full object-cover"
                   />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+
+                {!isWebcamActive && !rewardClaimed && (
+                  <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center p-3 text-center transition-all">
+                    <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-400 flex items-center justify-center mb-1.5 shadow-md">
+                      <Pause className="w-4 h-4 fill-amber-400" />
+                    </div>
+                    <span className="text-xs font-bold text-amber-300">Video Menunggu Kamera Aktif</span>
+                    <span className="text-[10px] text-gray-300 max-w-xs mt-0.5 leading-tight">
+                      Video arahan dijeda agar Anda tidak ketinggalan gerakan. Izinkan akses kamera di bawah untuk memulai tutorial.
+                    </span>
+                  </div>
                 )}
                 <div className="absolute bottom-2 left-2 right-2 bg-black/75 backdrop-blur px-3 py-1.5 rounded-lg text-xs text-gray-200">
                   <strong className="text-white block">{currentMoveItMedia.title}</strong>

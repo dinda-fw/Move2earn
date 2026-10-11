@@ -6,7 +6,8 @@ import {
   SavedWorkout, 
   CompletedWorkoutSession,
   EquipmentType,
-  MuscleGroup
+  MuscleGroup,
+  ExerciseDifficulty
 } from './types';
 import { INITIAL_EXERCISES, PRESET_WORKOUT_PLANS } from './exerciseData';
 import { Move2EarnStore } from './store';
@@ -287,5 +288,47 @@ export const WorkoutStore = {
       success: true,
       coinsAwarded: data.coins_awarded
     };
+  },
+
+  getAlternativeExercise(
+    currentExerciseId: string, 
+    allowedEquip: EquipmentType[] = ['bodyweight'], 
+    targetMuscles: MuscleGroup[] = ['full_body']
+  ): Exercise | undefined {
+    const all = this.getAllExercises();
+    const current = this.getExerciseById(currentExerciseId);
+    if (!current) return undefined;
+
+    const candidates = all.filter(ex => {
+      if (ex.id === currentExerciseId) return false;
+      const equipMatch = ex.equipment.every(eq => allowedEquip.includes(eq) || eq === 'yoga_mat');
+      const muscleMatch = targetMuscles.includes('full_body') || targetMuscles.includes(ex.primary_muscle) || ex.primary_muscle === current.primary_muscle;
+      return equipMatch && muscleMatch;
+    });
+
+    if (candidates.length === 0) {
+      return all.find(ex => ex.id !== currentExerciseId);
+    }
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  },
+
+  generateWorkoutPlan(prefs: {
+    equipment: EquipmentType[];
+    targetMuscles: MuscleGroup[];
+    durationMinutes: number;
+    difficulty: ExerciseDifficulty;
+    category?: any;
+    location?: any;
+  }): WorkoutPlan {
+    return this.generateWorkout({
+      equipment: prefs.equipment,
+      target_muscles: prefs.targetMuscles,
+      duration_minutes: prefs.durationMinutes,
+      difficulty: prefs.difficulty,
+      category: prefs.category || 'mixed',
+      location: prefs.location || 'home',
+      intensity: 'moderate',
+      goal: 'stay_active'
+    });
   }
 };

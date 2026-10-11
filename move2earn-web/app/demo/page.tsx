@@ -48,10 +48,36 @@ import {
   Plus,
   Trash2,
   ChevronDown,
-  X
+  X,
+  Wallet,
+  Search,
+  Filter,
+  Sliders,
+  Shuffle,
+  Layers,
+  ExternalLink,
+  BarChart3
 } from 'lucide-react';
 import { Move2EarnStore } from '@/lib/store';
-import { Challenge, Reward, ActivitySummary } from '@/lib/types';
+import { 
+  Challenge, 
+  Reward, 
+  ActivitySummary,
+  DashboardSummary,
+  Exercise,
+  WorkoutPlan,
+  WorkoutPlanExercise,
+  EquipmentType,
+  MuscleGroup,
+  WorkoutCategory,
+  ExerciseDifficulty,
+  Redemption,
+  WalletTransaction
+} from '@/lib/types';
+import { WorkoutStore } from '@/lib/workoutStore';
+import { INITIAL_EXERCISES, PRESET_WORKOUT_PLANS } from '@/lib/exerciseData';
+import ExerciseDetailModal from '@/components/workout/ExerciseDetailModal';
+import GuidedWorkoutPlayer from '@/components/workout/GuidedWorkoutPlayer';
 import { 
   fetchMoveItMedia, 
   getMediaForSession, 
@@ -242,8 +268,10 @@ const playSound = (type: 'alert' | 'coin' | 'click') => {
   }
 };
 
-type PhoneTab = 'dashboard' | 'tracking' | 'moveit' | 'rewards' | 'profile';
+type PhoneTab = 'tracking' | 'workout' | 'moveit' | 'rewards' | 'profile';
 type TrackingPeriod = 'daily' | 'weekly';
+type RewardsSubTab = 'marketplace' | 'wallet' | 'vouchers';
+type WorkoutSubTab = 'builder' | 'library' | 'presets';
 type ProfileSubView = 'main' | 'focus_notifications' | 'pro_coach' | 'help_support' | 'auth';
 
 interface ChatMessage {
@@ -262,12 +290,17 @@ export default function MobileDemoPage() {
   const [fitnessLevel, setFitnessLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Beginner');
   const [selectedFocusApps, setSelectedFocusApps] = useState<string[]>(['TikTok', 'Instagram', 'YouTube']);
 
-  // Navigation & Phone Tab State (matches the 5 reference screens)
-  const [activeTab, setActiveTab] = useState<PhoneTab>('dashboard');
+  // Navigation & Phone Tab State
+  const [activeTab, setActiveTab] = useState<PhoneTab>('tracking');
   const [trackingPeriod, setTrackingPeriod] = useState<TrackingPeriod>('daily');
   const [profileSubView, setProfileSubView] = useState<ProfileSubView>('main');
   const [currentTime, setCurrentTime] = useState('09:41');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showPresenterPanel, setShowPresenterPanel] = useState(false);
+
+  // Sub-tab Navigation
+  const [rewardsSubTab, setRewardsSubTab] = useState<RewardsSubTab>('marketplace');
+  const [workoutSubTab, setWorkoutSubTab] = useState<WorkoutSubTab>('builder');
 
   // Incoming Notification Simulation (from external TikTok/Instagram)
   const [showExternalNotification, setShowExternalNotification] = useState(false);
@@ -325,20 +358,94 @@ export default function MobileDemoPage() {
     if (soundEnabled) playSound('coin');
   };
 
-  // Rewards & Wallet State
+  // Rewards & Wallet State (Synced with Web Store)
   const [rewardsList, setRewardsList] = useState<Reward[]>([]);
-  const [walletBalance, setWalletBalance] = useState(320);
+  const [walletBalance, setWalletBalance] = useState(75);
+  const [walletSummary, setWalletSummary] = useState<any>(null);
+  const [transactionsList, setTransactionsList] = useState<WalletTransaction[]>([]);
+  const [redemptionsList, setRedemptionsList] = useState<Redemption[]>([]);
   const [redeemedVoucher, setRedeemedVoucher] = useState<{ title: string; code: string; price: number } | null>(null);
+  const [qrModalVoucher, setQrModalVoucher] = useState<Redemption | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  // Activity summary
+  // Workout Plan State (Synced with WorkoutStore & INITIAL_EXERCISES)
+  const [builderStep, setBuilderStep] = useState<1 | 2 | 3 | 4>(1);
+  const [builderEquipment, setBuilderEquipment] = useState<EquipmentType[]>(['bodyweight']);
+  const [builderMuscles, setBuilderMuscles] = useState<MuscleGroup[]>(['full_body']);
+  const [builderDuration, setBuilderDuration] = useState<15 | 30 | 45 | 60>(30);
+  const [builderDifficulty, setBuilderDifficulty] = useState<ExerciseDifficulty>('beginner');
+  const [generatedPlan, setGeneratedPlan] = useState<WorkoutPlan | null>(null);
+  const [selectedDetailExercise, setSelectedDetailExercise] = useState<Exercise | null>(null);
+  const [activeGuidedPlan, setActiveGuidedPlan] = useState<WorkoutPlan | null>(null);
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [libraryCategory, setLibraryCategory] = useState<string>('all');
+  const [savedPlans, setSavedPlans] = useState<WorkoutPlan[]>([]);
+
+  // Synchronized Web Data & Dashboard Summary
   const [activity, setActivity] = useState<ActivitySummary | null>(null);
+  const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(null);
+
+  // Derived values from synchronized web data
+  const dailyPercent = activity?.daily_goal_percent ?? 68;
+  const activeMin = activity?.active_minutes ?? 24;
+  const targetMin = dailyGoalTarget || activity?.daily_goal_minutes || 35;
+  const savedMinutes = activity?.screen_time_saved_minutes ?? 80;
+  const savedHours = Math.floor(savedMinutes / 60);
+  const savedRemain = savedMinutes % 60;
+  const savedDisplay = savedHours > 0 ? `${savedHours}h ${savedRemain}m` : `${savedRemain}m`;
+
+  const screenTimeMinutes = dashboardSummary?.screen_time_minutes ?? 78;
+  const screenTimeH = Math.floor(screenTimeMinutes / 60);
+  const screenTimeM = Math.round(screenTimeMinutes % 60);
+  const totalScreenTimeDisplay = screenTimeH > 0 ? `${screenTimeH}h ${screenTimeM}m` : `${screenTimeM}m`;
+
+  const getAppUsageMinutes = (appId: string) => {
+    if (!dashboardSummary?.app_breakdown) {
+      return appId === 'tiktok' ? 39 : appId === 'instagram' ? 26 : 13;
+    }
+    const match = dashboardSummary.app_breakdown.find((b: any) => 
+      (appId === 'tiktok' && b.package_name.includes('musically')) ||
+      (appId === 'instagram' && b.package_name.includes('instagram')) ||
+      (appId === 'youtube' && b.package_name.includes('youtube')) ||
+      b.package_name.toLowerCase().includes(appId.toLowerCase())
+    );
+    if (match) return Math.round(match.duration_seconds / 60);
+    return appId === 'tiktok' ? 39 : appId === 'instagram' ? 26 : 13;
+  };
+
+  const hourlyData = activity?.today_hourly_screentime || [
+    { hour: '6', minutes: 10 },
+    { hour: '9', minutes: 18 },
+    { hour: '12', minutes: 28, active: true },
+    { hour: '15', minutes: 12 },
+    { hour: '18', minutes: 8 },
+    { hour: '21', minutes: 4 },
+  ];
+
+  const weeklyData = activity?.this_week || [
+    { day: 'Mon', minutes: 20 },
+    { day: 'Tue', minutes: 30 },
+    { day: 'Wed', minutes: 25 },
+    { day: 'Thu', minutes: 35, active: true },
+    { day: 'Fri', minutes: 20 },
+    { day: 'Sat', minutes: 28 },
+    { day: 'Sun', minutes: 15 },
+  ];
+
+  const recentSessionsList = (activity?.recent_sessions && activity.recent_sessions.length > 0)
+    ? activity.recent_sessions
+    : [
+        { id: 'ws-1', title: 'Full Body Move', duration_minutes: 10, calories: 120, coins: 50, time: 'Today, 10:24', status: 'verified' },
+        { id: 'ws-2', title: 'Jumping Jacks', duration_minutes: 3, calories: 40, coins: 15, time: 'Today, 14:20', status: 'verified' },
+        { id: 'ws-3', title: 'Squat Challenge', duration_minutes: 5, calories: 60, coins: 20, time: 'Today, 10:05', status: 'verified' },
+      ];
 
   // AI Coach Chatbot State (MoveIt Pro Feature)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: 'msg-1',
       sender: 'coach',
-      text: `Halo ${userName}! Saya Coach Max AI pribadimu di MoveIt Pro 👑. Hari ini kamu sudah bergerak 24 menit (68% target) dan berhasil menghemat screen time 1h 20m. Ada yang ingin kamu konsultasikan tentang pola olahragamu?`,
+      text: `Halo ${userName}! Saya Coach Max AI pribadimu di MoveIt Pro 👑. Hari ini kamu sudah bergerak ${activeMin} menit (${dailyPercent}% target) dan berhasil menghemat screen time ${savedDisplay}. Ada yang ingin kamu konsultasikan tentang pola olahragamu?`,
       time: '09:42'
     }
   ]);
@@ -348,27 +455,54 @@ export default function MobileDemoPage() {
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
+  const moveItGuideVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  useEffect(() => {
+  // Synchronize store data between Web and Mobile Demo
+  const refreshStoreData = () => {
     const act = Move2EarnStore.getActivitySummary();
     setActivity(act);
+    const dash = Move2EarnStore.getDashboardSummary();
+    setDashboardSummary(dash);
     const rws = Move2EarnStore.getRewards();
     setRewardsList(rws);
     const summary = Move2EarnStore.getWalletSummary();
-    setWalletBalance(summary.balance || 320);
+    setWalletBalance(summary.balance !== undefined ? summary.balance : 75);
+    setWalletSummary(summary);
+    setTransactionsList(Move2EarnStore.getTransactions());
+    setRedemptionsList(Move2EarnStore.getRedemptions());
+    setSavedPlans(WorkoutStore.getPresetPlans());
+  };
+
+  useEffect(() => {
+    refreshStoreData();
+    window.addEventListener('storage', refreshStoreData);
+    const syncInterval = setInterval(refreshStoreData, 2000);
+
+    // Default generate a clean starter routine for step 4 preview
+    const initialPlan = WorkoutStore.generateWorkoutPlan({
+      equipment: ['bodyweight'],
+      targetMuscles: ['full_body'],
+      durationMinutes: 30,
+      difficulty: 'beginner',
+    });
+    setGeneratedPlan(initialPlan);
 
     const updateClock = () => {
       const now = new Date();
       setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
     };
     updateClock();
-    const interval = setInterval(updateClock, 10000);
-    return () => clearInterval(interval);
+    const clockInterval = setInterval(updateClock, 10000);
+    return () => {
+      window.removeEventListener('storage', refreshStoreData);
+      clearInterval(syncInterval);
+      clearInterval(clockInterval);
+    };
   }, []);
 
-  // Countdown timer for MoveIt Challenge
+  // Countdown timer for MoveIt Challenge (Hanya berjalan saat kamera aktif agar user tidak ketinggalan gerakan)
   useEffect(() => {
-    if (activeTab !== 'moveit' || workoutCompleted) return;
+    if (activeTab !== 'moveit' || workoutCompleted || !isWebcamActive) return;
 
     const timer = setInterval(() => {
       setWorkoutSecondsLeft((prev) => {
@@ -379,12 +513,36 @@ export default function MobileDemoPage() {
         return prev - 1;
       });
 
-      // Incremental reps
-      setRepCount((prev) => (prev < repTarget ? prev + 1 : prev));
+      // Incremental reps - langsung Challenge Complete begitu mencapai repTarget (25 reps)
+      setRepCount((prev) => {
+        const next = prev + 1;
+        if (next >= repTarget) {
+          handleFinishWorkout();
+          return repTarget;
+        }
+        return next;
+      });
     }, 1200);
 
     return () => clearInterval(timer);
-  }, [activeTab, workoutCompleted, repTarget]);
+  }, [activeTab, workoutCompleted, isWebcamActive, repTarget]);
+
+  // Synchronize MoveIt guide video with camera active state (tidak autoPlay sebelum kamera aktif)
+  useEffect(() => {
+    const videoEl = moveItGuideVideoRef.current;
+    if (!videoEl) return;
+
+    if (activeTab === 'moveit' && isWebcamActive && !workoutCompleted) {
+      const playPromise = videoEl.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('MoveIt guide video play error:', err);
+        });
+      }
+    } else {
+      videoEl.pause();
+    }
+  }, [activeTab, isWebcamActive, workoutCompleted, currentMoveItMedia.url]);
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -409,6 +567,12 @@ export default function MobileDemoPage() {
     setWorkoutCompleted(false);
     setWorkoutSecondsLeft(30);
     setRepCount(0);
+    if (moveItGuideVideoRef.current) {
+      moveItGuideVideoRef.current.currentTime = 0;
+      if (!isWebcamActive) {
+        moveItGuideVideoRef.current.pause();
+      }
+    }
   };
 
   // Direct Live Webcam Feed Management (Tanpa AI Skeleton, fokus kamera fisik)
@@ -420,6 +584,7 @@ export default function MobileDemoPage() {
         setIsWebcamActive(true);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
         }
       })
       .catch((err) => {
@@ -448,12 +613,17 @@ export default function MobileDemoPage() {
 
   // Finish Workout
   const handleFinishWorkout = () => {
+    if (workoutCompleted) return;
     if (soundEnabled) playSound('coin');
     const ch = Move2EarnStore.getChallenges()[0];
     Move2EarnStore.completeWorkout(ch.id, 30);
-    const summary = Move2EarnStore.getWalletSummary();
-    setWalletBalance(summary.balance);
+    refreshStoreData();
     setWorkoutCompleted(true);
+    setRepCount(repTarget);
+    setWorkoutSecondsLeft(0);
+    if (moveItGuideVideoRef.current) {
+      moveItGuideVideoRef.current.pause();
+    }
   };
 
   // Simulate External Push Notification
@@ -471,23 +641,126 @@ export default function MobileDemoPage() {
     setWorkoutCompleted(false);
   };
 
-  // Redeem Reward
+  // Redeem Reward (Synchronized with Store)
   const handleRedeem = (reward: Reward) => {
     if (walletBalance < reward.coin_price) {
-      alert('Move Coins tidak mencukupi!');
+      alert('Move Coins tidak mencukupi untuk menukar voucher ini!');
       return;
     }
     if (soundEnabled) playSound('coin');
     const res = Move2EarnStore.redeemReward(reward.id);
     if (res.success && res.redemption) {
+      refreshStoreData();
       setRedeemedVoucher({
         title: reward.title,
         code: res.redemption.voucher_code || reward.voucher_code || 'M2E-CLAIM-2026',
         price: reward.coin_price
       });
-      const summary = Move2EarnStore.getWalletSummary();
-      setWalletBalance(summary.balance);
+      setRewardsSubTab('vouchers');
+    } else {
+      alert(res.error || 'Gagal menukarkan voucher.');
     }
+  };
+
+  const handleCopyVoucherCode = (code: string) => {
+    navigator.clipboard?.writeText(code);
+    setCopiedCode(code);
+    if (soundEnabled) playSound('click');
+    setTimeout(() => setCopiedCode(null), 2500);
+  };
+
+  // Workout Builder & Player Handlers
+  const handleGenerateWorkout = () => {
+    if (soundEnabled) playSound('coin');
+    const plan = WorkoutStore.generateWorkoutPlan({
+      equipment: builderEquipment,
+      targetMuscles: builderMuscles,
+      durationMinutes: builderDuration,
+      difficulty: builderDifficulty,
+    });
+    setGeneratedPlan(plan);
+    setBuilderStep(4);
+  };
+
+  const handleSwapExercise = (exerciseId: string) => {
+    if (!generatedPlan) return;
+    const replacement = WorkoutStore.getAlternativeExercise(
+      exerciseId,
+      builderEquipment,
+      builderMuscles
+    );
+    if (!replacement) {
+      alert('Tidak ada variasi gerakan pengganti yang cocok untuk kriteria saat ini.');
+      return;
+    }
+    const updatedExercises: WorkoutPlanExercise[] = generatedPlan.exercises.map((item) => {
+      if (item.exercise.id === exerciseId) {
+        return {
+          ...item,
+          exercise: replacement,
+        };
+      }
+      return item;
+    });
+    setGeneratedPlan({
+      ...generatedPlan,
+      exercises: updatedExercises,
+    });
+    if (soundEnabled) playSound('click');
+  };
+
+  const handleDeleteExercise = (exerciseId: string) => {
+    if (!generatedPlan || generatedPlan.exercises.length <= 1) {
+      alert('Rencana latihan minimal harus memiliki 1 gerakan.');
+      return;
+    }
+    const updated = generatedPlan.exercises.filter((ex) => ex.exercise.id !== exerciseId);
+    setGeneratedPlan({
+      ...generatedPlan,
+      exercises: updated,
+    });
+    if (soundEnabled) playSound('click');
+  };
+
+  const handleStartGuidedWorkout = (plan: WorkoutPlan) => {
+    setActiveGuidedPlan(plan);
+    if (soundEnabled) playSound('coin');
+  };
+
+  const handleFinishGuidedWorkout = (session: any) => {
+    const coins = session.coins_earned || Math.round((session.total_duration_seconds || 1800) / 60 * 2);
+    Move2EarnStore.addMoveCoins(coins, `Workout: ${activeGuidedPlan?.title || 'Guided Session'}`);
+    refreshStoreData();
+    setActiveGuidedPlan(null);
+    if (soundEnabled) playSound('coin');
+  };
+
+  const handleStartSingleExercise = (exercise: Exercise) => {
+    const singlePlan: WorkoutPlan = {
+      id: `quick-${exercise.id}-${Date.now()}`,
+      title: exercise.name,
+      description: `Sesi latihan terpandu: ${exercise.name}`,
+      target_muscles: [exercise.primary_muscle],
+      equipment: exercise.equipment,
+      estimated_duration_minutes: 5,
+      estimated_calories: 40,
+      coin_reward: 15,
+      category: exercise.category,
+      difficulty: exercise.difficulty,
+      exercises: [
+        {
+          id: `single-ex-${Date.now()}`,
+          exercise: exercise,
+          sets: 3,
+          reps_or_duration: exercise.recommended_reps || '12 reps',
+          duration_seconds: exercise.default_duration_seconds || 45,
+          rest_seconds: exercise.default_rest_seconds || 45,
+        }
+      ],
+      created_at: new Date().toISOString(),
+    };
+    setSelectedDetailExercise(null);
+    setActiveGuidedPlan(singlePlan);
   };
 
   // Handle AI Coach Chatbot Query
@@ -539,7 +812,7 @@ export default function MobileDemoPage() {
   const handleReset = () => {
     if (soundEnabled) playSound('click');
     setIsLoggedIn(true);
-    setActiveTab('dashboard');
+    setActiveTab('tracking');
     setProfileSubView('main');
     setShowExternalNotification(false);
     setWorkoutCompleted(false);
@@ -558,81 +831,149 @@ export default function MobileDemoPage() {
     if (soundEnabled) playSound('coin');
     setIsLoggedIn(true);
     setProfileSubView('main');
-    setActiveTab('dashboard');
+    setActiveTab('tracking');
   };
 
   return (
-    <div className="min-h-screen bg-[#06080e] text-gray-100 py-8 px-4 sm:px-6 lg:px-8">
-      {/* Top Header */}
-      <div className="max-w-7xl mx-auto mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800/80 pb-5">
-        <div>
+    <div className={`min-h-screen bg-[#06080e] text-gray-100 transition-colors ${showPresenterPanel ? 'py-8 px-4 sm:px-6 lg:px-8' : 'py-3 sm:py-6 px-2 sm:px-4 flex flex-col items-center justify-center'}`}>
+      
+      {/* Sleek Minimal Floating Header when in Focused Mobile Mode */}
+      {!showPresenterPanel && (
+        <div className="w-full max-w-lg mb-4 flex items-center justify-between px-3.5 py-2 rounded-2xl bg-[#0e131f]/90 backdrop-blur-md border border-gray-800 shadow-xl">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/30 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-ping" />
-              Sesi Demo Mobile App
+            <div className="w-2.5 h-2.5 rounded-full bg-[#ccff00] animate-pulse" />
+            <span className="text-xs font-black tracking-wider text-white">
+              MOVE<span className="text-[#ccff00]">2EARN</span>
             </span>
-            <span className="text-gray-500">•</span>
-            <span className="text-xs text-gray-400 font-mono">MOVEIT App Complete Suite</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/30 font-bold">
+              Mobile Demo
+            </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-            Simulator Handphone MOVEIT — Fitur Lengkap & Pro AI Coach
-          </h1>
-          <p className="text-xs sm:text-sm text-gray-400 mt-1 max-w-2xl">
-            Simulasi lengkap: Alur login/personalisasi, Dashboard metrik, Activity Tracking harian, Split-Screen Challenge, Hadiah, Pengaturan batas sosmed, <strong>Help & Support</strong>, serta fitur <strong>Upgrade MoveIt Pro (Deep Analytics & AI Coach Chatbot)</strong>!
-          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`p-1.5 rounded-xl border text-xs transition-colors ${
+                soundEnabled ? 'bg-[#ccff00]/10 border-[#ccff00]/30 text-[#ccff00]' : 'bg-gray-800 border-gray-700 text-gray-400'
+              }`}
+              title="Toggle Sound FX"
+            >
+              {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+            </button>
+
+            <button
+              onClick={handleReset}
+              className="p-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs text-white"
+              title="Reset Demo"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+            </button>
+
+            <Link
+              href="/dashboard"
+              className="px-2.5 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-[11px] font-semibold text-gray-300 hover:text-white flex items-center gap-1"
+            >
+              <span>Web</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+
+            {/* Tombol Utama untuk Menampilkan Semua Seperti Sebelumnya */}
+            <button
+              onClick={() => setShowPresenterPanel(true)}
+              className="px-3 py-1.5 rounded-xl bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-[11px] flex items-center gap-1.5 shadow-md shadow-[#ccff00]/25 transition-all group"
+              title="Tampilkan panel presenter, skenario 1-click switcher dan teks header"
+            >
+              <Sparkles className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+              <span>Tampilkan Panel Presenter</span>
+            </button>
+          </div>
         </div>
+      )}
 
-        {/* Global Controls */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-              soundEnabled ? 'bg-[#ccff00]/10 border-[#ccff00]/30 text-[#ccff00]' : 'bg-gray-800 border-gray-700 text-gray-400'
-            }`}
-            title="Toggle Sound FX"
-          >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            <span>Sound FX</span>
-          </button>
+      {/* Top Header (Visible in Presenter Mode) */}
+      {showPresenterPanel && (
+        <div className="max-w-7xl mx-auto mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800/80 pb-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/30 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-ping" />
+                Sesi Demo Mobile App
+              </span>
+              <span className="text-gray-500">•</span>
+              <span className="text-xs text-gray-400 font-mono">Move2earn App Complete Suite</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
+              Simulator Handphone Move2earn — Fitur Lengkap &amp; Pro AI Coach
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-400 mt-1 max-w-2xl">
+              Simulasi lengkap: Alur login/personalisasi, Dashboard metrik, Activity Tracking harian, Split-Screen Challenge, Hadiah, Pengaturan batas sosmed, <strong>Help &amp; Support</strong>, serta fitur <strong>Upgrade MoveIt Pro (Deep Analytics &amp; AI Coach Chatbot)</strong>!
+            </p>
+          </div>
 
-          <button
-            onClick={handleReset}
-            className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs font-bold text-white flex items-center gap-2 transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-            <span>Reset Demo</span>
-          </button>
+          {/* Global Controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowPresenterPanel(false)}
+              className="px-4 py-2 rounded-xl bg-[#ccff00] hover:bg-[#b8e600] text-black text-xs font-black flex items-center gap-1.5 shadow-lg shadow-[#ccff00]/20 transition-all"
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>Fokus Tampilan HP Saja</span>
+            </button>
 
-          <Link
-            href="/dashboard"
-            className="px-4 py-2 rounded-xl bg-[#ccff00] hover:bg-[#b8e600] text-black text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#ccff00]/20 transition-all"
-          >
-            <span>Buka Web Portal</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                soundEnabled ? 'bg-[#ccff00]/10 border-[#ccff00]/30 text-[#ccff00]' : 'bg-gray-800 border-gray-700 text-gray-400'
+              }`}
+              title="Toggle Sound FX"
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              <span>Sound FX</span>
+            </button>
+
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs font-bold text-white flex items-center gap-2 transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+              <span>Reset Demo</span>
+            </button>
+
+            <Link
+              href="/dashboard"
+              className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs font-bold text-white flex items-center gap-1.5 transition-all"
+            >
+              <span>Buka Web Portal</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* TWO-COLUMN LAYOUT: PHONE ON LEFT / PRESENTER COCKPIT ON RIGHT */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* LAYOUT CONTAINER */}
+      <div className={`mx-auto ${showPresenterPanel ? 'max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full' : 'w-full flex justify-center items-center'}`}>
         
         {/* ==================================================================== */}
-        {/* COLUMN 1: SMARTPHONE DEVICE FRAME (MATCHING SCREENSHOT DESIGN) */}
+        {/* COLUMN 1: SMARTPHONE DEVICE FRAME */}
         {/* ==================================================================== */}
-        <div className="lg:col-span-6 xl:col-span-5 flex justify-center">
+        <div className={`${showPresenterPanel ? 'lg:col-span-6 xl:col-span-5 flex justify-center' : 'w-full flex justify-center'}`}>
           
-          <div className="relative w-[345px] sm:w-[380px] h-[750px] bg-black rounded-[52px] p-3 shadow-[0_0_60px_-15px_rgba(204,255,0,0.25)] border-[8px] border-[#1a1f29] transition-all duration-300">
+          <div className={`relative bg-black rounded-[52px] sm:rounded-[58px] p-2.5 sm:p-3.5 shadow-[0_0_80px_-15px_rgba(204,255,0,0.3)] border-[8px] sm:border-[10px] border-[#1a1f29] transition-all duration-300 ${
+            showPresenterPanel
+              ? 'w-[345px] sm:w-[380px] h-[750px]'
+              : 'w-[365px] sm:w-[415px] md:w-[430px] h-[820px] sm:h-[860px] max-h-[92vh]'
+          }`}>
             
             {/* Outer Titanium Trim Accent */}
-            <div className="absolute inset-0 rounded-[44px] pointer-events-none border border-white/10" />
+            <div className="absolute inset-0 rounded-[44px] sm:rounded-[48px] pointer-events-none border border-white/10" />
 
             {/* Hardware Side Buttons */}
-            <div className="absolute -left-[11px] top-28 w-[3px] h-10 bg-gray-700 rounded-l" />
-            <div className="absolute -left-[11px] top-42 w-[3px] h-12 bg-gray-700 rounded-l" />
-            <div className="absolute -right-[11px] top-36 w-[3px] h-16 bg-gray-700 rounded-r" />
+            <div className="absolute -left-[11px] sm:-left-[13px] top-28 w-[3px] h-10 bg-gray-700 rounded-l" />
+            <div className="absolute -left-[11px] sm:-left-[13px] top-42 w-[3px] h-12 bg-gray-700 rounded-l" />
+            <div className="absolute -right-[11px] sm:-right-[13px] top-36 w-[3px] h-16 bg-gray-700 rounded-r" />
 
             {/* SCREEN VIEWPORT */}
-            <div className="relative w-full h-full bg-[#0e1117] rounded-[42px] overflow-hidden flex flex-col border border-gray-900 select-none text-white">
+            <div className="relative w-full h-full bg-[#0e1117] rounded-[42px] sm:rounded-[46px] overflow-hidden flex flex-col border border-gray-900 select-none text-white">
               
               {/* STATUS BAR */}
               <div className="absolute top-0 inset-x-0 h-10 z-30 px-6 flex items-center justify-between text-white text-xs font-semibold">
@@ -695,7 +1036,7 @@ export default function MobileDemoPage() {
                         <Zap className="w-7 h-7 fill-black" />
                       </div>
                       <h2 className="text-xl font-black text-white tracking-wider">
-                        MOVE<span className="text-[#ccff00]">IT</span>
+                        MOVE<span className="text-[#ccff00]">2EARN</span>
                       </h2>
                       <p className="text-xs text-gray-400 font-medium">Turn screen time into movement.</p>
                       <span className="text-[10px] text-gray-500 block">Personalisasi Akun & Target Kebugaran</span>
@@ -806,18 +1147,26 @@ export default function MobileDemoPage() {
                       </div>
                     </div>
                   </div>
-                ) : activeTab === 'dashboard' ? (
+                ) : activeTab === 'tracking' ? (
                   /* ------------------------------------------------------------ */
-                  /* SCREEN 1: DASHBOARD (SCREENSHOT 1) */
+                  /* SCREEN 1: ALL-IN-ONE TRACKING (DASHBOARD & ACTIVITY TRACKING) */
                   /* ------------------------------------------------------------ */
                   <div className="p-4 space-y-4">
                     {/* Top App Header */}
                     <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-base tracking-wider text-white">
-                        MOVE<span className="text-[#ccff00]">IT</span>
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-base tracking-wider text-white">
+                          MOVE<span className="text-[#ccff00]">2EARN</span>
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ccff00]/10 text-[#ccff00] font-bold border border-[#ccff00]/25">
+                          Tracking
+                        </span>
+                      </div>
                       <button 
-                        onClick={() => setActiveTab('profile')}
+                        onClick={() => {
+                          setActiveTab('profile');
+                          setProfileSubView('focus_notifications');
+                        }}
                         className="p-1.5 rounded-full bg-gray-900 border border-gray-800 text-gray-300 hover:text-white"
                       >
                         <Bell className="w-4 h-4" />
@@ -832,14 +1181,38 @@ export default function MobileDemoPage() {
                       </div>
                       <div className="px-2.5 py-1 rounded-full bg-black/60 border border-gray-800 flex items-center gap-1.5 text-xs font-bold text-[#ccff00]">
                         <Flame className="w-3.5 h-3.5 fill-[#ccff00]" />
-                        <span>7 Day Streak</span>
+                        <span>{activity?.day_streak ?? 7} Day Streak</span>
                       </div>
+                    </div>
+
+                    {/* Daily / Weekly Pill Switch */}
+                    <div className="p-1 rounded-2xl bg-[#121620] border border-gray-800 grid grid-cols-2 text-xs">
+                      <button
+                        onClick={() => setTrackingPeriod('daily')}
+                        className={`py-1.5 rounded-xl font-bold transition-all ${
+                          trackingPeriod === 'daily'
+                            ? 'bg-[#ccff00] text-black shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Daily Tracking
+                      </button>
+                      <button
+                        onClick={() => setTrackingPeriod('weekly')}
+                        className={`py-1.5 rounded-xl font-bold transition-all ${
+                          trackingPeriod === 'weekly'
+                            ? 'bg-[#ccff00] text-black shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Weekly Overview
+                      </button>
                     </div>
 
                     {/* Hero Circular Progress & Side Stats Grid */}
                     <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800/80 grid grid-cols-12 gap-3 items-center">
                       
-                      {/* Left Circular Ring (68% Daily Goal) */}
+                      {/* Left Circular Ring (Daily Goal) */}
                       <div className="col-span-6 flex flex-col items-center justify-center relative">
                         <div className="relative w-28 h-28 flex items-center justify-center">
                           <svg className="w-28 h-28 transform -rotate-90">
@@ -858,15 +1231,15 @@ export default function MobileDemoPage() {
                               className="stroke-[#ccff00] transition-all duration-1000 ease-out"
                               strokeWidth="8"
                               strokeDasharray={289}
-                              strokeDashoffset={289 * (1 - 0.68)}
+                              strokeDashoffset={289 * (1 - Math.min(1, dailyPercent / 100))}
                               strokeLinecap="round"
                               fill="transparent"
                             />
                           </svg>
                           <div className="absolute text-center">
-                            <span className="text-lg font-black text-white block leading-tight">68%</span>
+                            <span className="text-lg font-black text-white block leading-tight">{dailyPercent}%</span>
                             <span className="text-[9px] text-gray-400 uppercase tracking-wider block">Daily Goal</span>
-                            <span className="text-[10px] text-[#ccff00] font-mono font-bold block mt-0.5">24 / {dailyGoalTarget} min</span>
+                            <span className="text-[10px] text-[#ccff00] font-mono font-bold block mt-0.5">{activeMin} / {targetMin} min</span>
                           </div>
                         </div>
                       </div>
@@ -878,11 +1251,14 @@ export default function MobileDemoPage() {
                             <Clock className="w-3 h-3 text-[#ccff00]" />
                             <span>Screen Time Saved</span>
                           </div>
-                          <div className="text-sm font-bold text-white font-mono mt-0.5">1h 20m</div>
+                          <div className="text-sm font-bold text-white font-mono mt-0.5">{savedDisplay}</div>
                         </div>
 
                         <div 
-                          onClick={() => setActiveTab('rewards')}
+                          onClick={() => {
+                            setActiveTab('rewards');
+                            setRewardsSubTab('wallet');
+                          }}
                           className="p-2.5 rounded-2xl bg-[#181e2b] border border-gray-800 text-xs cursor-pointer hover:border-[#ccff00]/40 transition-colors"
                         >
                           <div className="flex items-center justify-between">
@@ -903,7 +1279,7 @@ export default function MobileDemoPage() {
                         <div className="flex items-center justify-center gap-1 text-orange-400 mb-0.5">
                           <Flame className="w-3.5 h-3.5 fill-orange-400" />
                         </div>
-                        <div className="font-bold text-white text-sm font-mono">245</div>
+                        <div className="font-bold text-white text-sm font-mono">{activity?.calories_burned?.toLocaleString() ?? 245}</div>
                         <div className="text-[9px] text-gray-400 uppercase">Calories</div>
                       </div>
 
@@ -911,7 +1287,7 @@ export default function MobileDemoPage() {
                         <div className="flex items-center justify-center gap-1 text-[#ccff00] mb-0.5">
                           <Footprints className="w-3.5 h-3.5" />
                         </div>
-                        <div className="font-bold text-white text-sm font-mono">3,200</div>
+                        <div className="font-bold text-white text-sm font-mono">{activity?.steps_count?.toLocaleString() ?? '3,200'}</div>
                         <div className="text-[9px] text-gray-400 uppercase">Steps</div>
                       </div>
 
@@ -919,201 +1295,143 @@ export default function MobileDemoPage() {
                         <div className="flex items-center justify-center gap-1 text-teal-400 mb-0.5">
                           <Dumbbell className="w-3.5 h-3.5" />
                         </div>
-                        <div className="font-bold text-white text-sm font-mono">4</div>
+                        <div className="font-bold text-white text-sm font-mono">{activity?.workout_sessions_count ?? 4}</div>
                         <div className="text-[9px] text-gray-400 uppercase">Workouts</div>
                       </div>
                     </div>
 
-                    {/* "This Week" Bar Chart Section */}
+                    {/* Screen Time (Social Apps) Bar Chart Section */}
                     <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-bold text-white">This Week</h3>
-                        <button 
-                          onClick={() => setActiveTab('tracking')}
-                          className="text-[10px] text-gray-400 hover:text-white flex items-center gap-0.5"
-                        >
-                          See Details <ChevronRight className="w-3 h-3" />
-                        </button>
+                        <div>
+                          <h3 className="text-xs font-bold text-white">
+                            {trackingPeriod === 'daily' ? 'Hourly Social Screentime' : 'Weekly Activity Progress'}
+                          </h3>
+                          <span className="text-[10px] text-gray-400">Total hari ini: {totalScreenTimeDisplay} (↓ 42% vs kemarin)</span>
+                        </div>
+                        <span className="text-[10px] text-[#ccff00] font-mono font-bold bg-[#ccff00]/10 px-2 py-0.5 rounded-full border border-[#ccff00]/25">
+                          Terkontrol
+                        </span>
                       </div>
 
                       {/* Bar chart */}
-                      <div className="flex items-end justify-between h-24 pt-3 px-1 border-b border-gray-800/80 pb-2">
-                        {[
-                          { day: 'Mon', h: 30 },
-                          { day: 'Tue', h: 48 },
-                          { day: 'Wed', h: 38 },
-                          { day: 'Thu', h: 80, active: true, label: '35 min' },
-                          { day: 'Fri', h: 42 },
-                          { day: 'Sat', h: 56 },
-                          { day: 'Sun', h: 25 },
-                        ].map((b) => (
-                          <div key={b.day} className="flex flex-col items-center gap-1.5 flex-1 relative">
-                            {b.active && (
-                              <div className="absolute -top-6 bg-black text-[#ccff00] text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-[#ccff00]/40 whitespace-nowrap">
-                                {b.label}
+                      {trackingPeriod === 'daily' ? (
+                        <div className="flex items-end justify-between h-24 pt-3 px-1 border-b border-gray-800/80 pb-2">
+                          {hourlyData.map((item) => {
+                            const val = Math.min(100, Math.round((item.minutes / 30) * 100));
+                            return (
+                              <div key={item.hour} className="flex flex-col items-center gap-1.5 flex-1 relative">
+                                {item.active && (
+                                  <div className="absolute -top-6 bg-black text-[#ccff00] text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-[#ccff00]/40 whitespace-nowrap">
+                                    {item.minutes} min
+                                  </div>
+                                )}
+                                <div 
+                                  className={`w-3.5 rounded-full ${item.active ? 'bg-[#ccff00]' : 'bg-[#1e2536]'}`}
+                                  style={{ height: `${Math.max(12, val)}%` }}
+                                />
+                                <span className="text-[10px] text-gray-400 font-mono">{item.hour}:00</span>
                               </div>
-                            )}
-                            <div 
-                              className={`w-3.5 rounded-full transition-all ${
-                                b.active ? 'bg-[#ccff00]' : 'bg-[#1e2536]'
-                              }`}
-                              style={{ height: `${b.h}%` }}
-                            />
-                            <span className={`text-[10px] font-mono ${b.active ? 'text-[#ccff00] font-bold' : 'text-gray-400'}`}>
-                              {b.day}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex items-end justify-between h-24 pt-3 px-1 border-b border-gray-800/80 pb-2">
+                          {weeklyData.map((b) => {
+                            const h = Math.min(100, Math.round((b.minutes / 40) * 100));
+                            return (
+                              <div key={b.day} className="flex flex-col items-center gap-1.5 flex-1 relative">
+                                {b.active && (
+                                  <div className="absolute -top-6 bg-black text-[#ccff00] text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-[#ccff00]/40 whitespace-nowrap">
+                                    {b.minutes} min
+                                  </div>
+                                )}
+                                <div 
+                                  className={`w-3.5 rounded-full transition-all ${
+                                    b.active ? 'bg-[#ccff00]' : 'bg-[#1e2536]'
+                                  }`}
+                                  style={{ height: `${Math.max(15, h)}%` }}
+                                />
+                                <span className={`text-[10px] font-mono ${b.active ? 'text-[#ccff00] font-bold' : 'text-gray-400'}`}>
+                                  {b.day}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
-                    {/* "Recent Workout" Section */}
-                    <div className="space-y-2">
+                    {/* Social Apps Screentime Breakdown */}
+                    <div className="p-3.5 rounded-3xl bg-[#121620] border border-gray-800 space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-bold text-white">Recent Workout</h3>
-                        <button 
-                          onClick={() => setActiveTab('tracking')}
-                          className="text-[10px] text-gray-400 hover:text-white flex items-center gap-0.5"
+                        <span className="text-xs font-bold text-white">Aplikasi yang Dipantau</span>
+                        <button
+                          onClick={() => {
+                            setActiveTab('profile');
+                            setProfileSubView('focus_notifications');
+                          }}
+                          className="text-[10px] text-[#ccff00] hover:underline flex items-center gap-0.5"
                         >
-                          See All <ChevronRight className="w-3 h-3" />
+                          Atur Threshold <ChevronRight className="w-3 h-3" />
                         </button>
                       </div>
-
-                      <div className="p-3 rounded-2xl bg-[#121620] border border-gray-800 flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-10 h-10 rounded-xl bg-[#ccff00]/15 text-[#ccff00] flex items-center justify-center">
-                            <Dumbbell className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="text-xs font-bold text-white">Full Body Move</h4>
-                            <p className="text-[10px] text-gray-400">10 min • 120 kcal</p>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <span className="text-xs font-bold text-[#ccff00] font-mono">+50 🪙</span>
-                          <span className="text-[10px] text-gray-400 block">Today, 10:24</span>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                ) : activeTab === 'tracking' ? (
-                  /* ------------------------------------------------------------ */
-                  /* SCREEN 2: ACTIVITY TRACKING (SCREENSHOT 2) */
-                  /* ------------------------------------------------------------ */
-                  <div className="p-4 space-y-4">
-                    {/* Header */}
-                    <div className="flex items-center justify-between border-b border-gray-800/80 pb-3">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setActiveTab('dashboard')} className="text-gray-400 hover:text-white">
-                          <ChevronLeft className="w-5 h-5" />
-                        </button>
-                        <h2 className="text-sm font-bold text-white">Activity Tracking</h2>
-                      </div>
-                    </div>
-
-                    {/* Daily / Weekly Pill Switch */}
-                    <div className="p-1 rounded-2xl bg-[#121620] border border-gray-800 grid grid-cols-2 text-xs">
-                      <button
-                        onClick={() => setTrackingPeriod('daily')}
-                        className={`py-1.5 rounded-xl font-bold transition-all ${
-                          trackingPeriod === 'daily'
-                            ? 'bg-[#ccff00] text-black shadow'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        Daily
-                      </button>
-                      <button
-                        onClick={() => setTrackingPeriod('weekly')}
-                        className={`py-1.5 rounded-xl font-bold transition-all ${
-                          trackingPeriod === 'weekly'
-                            ? 'bg-[#ccff00] text-black shadow'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        Weekly
-                      </button>
-                    </div>
-
-                    {/* Date Navigator */}
-                    <div className="flex items-center justify-between text-xs text-gray-300 px-2 font-mono">
-                      <button className="text-gray-400 hover:text-white">&lt;</button>
-                      <span className="font-semibold text-white">Tue, 24 Jun 2025</span>
-                      <button className="text-gray-400 hover:text-white">&gt;</button>
-                    </div>
-
-                    {/* Total Screen Time Card */}
-                    <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-black/60 border border-gray-800 flex items-center justify-center text-gray-300">
-                          <Smartphone className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-gray-400 block">Total Screen Time (Social Apps)</span>
-                          <span className="text-lg font-bold text-white font-mono">1h 20m</span>
-                        </div>
-                      </div>
-
-                      <div className="px-2 py-1 rounded-full bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/30 text-[10px] font-bold">
-                        ↓ 42% vs yesterday
-                      </div>
-                    </div>
-
-                    {/* Hourly Screen Time Bar Chart */}
-                    <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800 space-y-3">
-                      <span className="text-xs font-bold text-white block">Screen Time (Social Apps)</span>
-
-                      <div className="flex items-end justify-between h-28 pt-4 px-2 border-b border-gray-800/80 pb-2">
-                        {[
-                          { h: '6', val: 12 },
-                          { h: '9', val: 24 },
-                          { h: '12', val: 40 },
-                          { h: '15', val: 68, active: true, label: '28 min' },
-                          { h: '18', val: 32 },
-                          { h: '21', val: 16 },
-                        ].map((item) => (
-                          <div key={item.h} className="flex flex-col items-center gap-1.5 flex-1 relative">
-                            {item.active && (
-                              <div className="absolute -top-6 bg-black text-[#ccff00] text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-[#ccff00]/40">
-                                {item.label}
-                              </div>
-                            )}
-                            <div 
-                              className={`w-3.5 rounded-full ${item.active ? 'bg-[#ccff00]' : 'bg-[#1e2536]'}`}
-                              style={{ height: `${item.val}%` }}
-                            />
-                            <span className="text-[10px] text-gray-400 font-mono">{item.h}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Workout Sessions List */}
-                    <div className="space-y-2">
-                      <h3 className="text-xs font-bold text-white">Workout Sessions</h3>
 
                       <div className="space-y-2">
-                        {[
-                          { title: 'Jumping Jacks', min: '3 min • 40 kcal', coin: '+15', time: '14:20' },
-                          { title: 'Squat Challenge', min: '5 min • 60 kcal', coin: '+20', time: '10:05' },
-                          { title: 'Stretching', min: '5 min • 35 kcal', coin: '+15', time: '08:12' }
-                        ].map((sess, idx) => (
-                          <div key={idx} className="p-3 rounded-2xl bg-[#121620] border border-gray-800 flex items-center justify-between">
+                        {monitoredApps.map((app) => {
+                          const usedMin = getAppUsageMinutes(app.id);
+                          const isExceeded = usedMin >= app.thresholdMinutes;
+                          return (
+                            <div key={app.id} className="p-2 rounded-2xl bg-[#181e2b] border border-gray-800 flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                {renderAppIcon(app.iconType, app.name, "w-7 h-7")}
+                                <div>
+                                  <span className="font-bold text-white block text-[11px]">{app.name}</span>
+                                  <span className="text-[9px] text-gray-400">Batas: {app.thresholdMinutes}m</span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-mono font-bold text-white text-[11px]">
+                                  {usedMin}m
+                                </span>
+                                <span className={`text-[9px] block ${isExceeded ? 'text-amber-400 font-bold' : 'text-gray-400'}`}>
+                                  {isExceeded ? '⚠️ Penuh' : 'Aman'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Recent Workout Sessions */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-white">Sesi Latihan Terkini</h3>
+                        <button 
+                          onClick={() => setActiveTab('workout')}
+                          className="text-[10px] text-[#ccff00] hover:underline flex items-center gap-0.5"
+                        >
+                          + Buka Workout Plan <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                        {recentSessionsList.map((sess, idx) => (
+                          <div key={sess.id || idx} className="p-3 rounded-2xl bg-[#121620] border border-gray-800 flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                               <div className="w-9 h-9 rounded-xl bg-[#ccff00]/15 text-[#ccff00] flex items-center justify-center">
                                 <Dumbbell className="w-4 h-4" />
                               </div>
                               <div>
                                 <h4 className="text-xs font-bold text-white">{sess.title}</h4>
-                                <p className="text-[10px] text-gray-400">{sess.min}</p>
+                                <p className="text-[10px] text-gray-400">{sess.duration_minutes} min • {sess.calories} kcal</p>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-2 text-right">
                               <div>
-                                <span className="text-xs font-bold text-[#ccff00] font-mono">{sess.coin} 🪙</span>
+                                <span className="text-xs font-bold text-[#ccff00] font-mono">+{sess.coins} 🪙</span>
                                 <span className="text-[10px] text-gray-500 block">{sess.time}</span>
                               </div>
                               <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
@@ -1121,7 +1439,559 @@ export default function MobileDemoPage() {
                           </div>
                         ))}
                       </div>
+
+                      <button
+                        onClick={() => setActiveTab('workout')}
+                        className="w-full py-2.5 rounded-2xl bg-[#ccff00]/15 hover:bg-[#ccff00]/25 text-[#ccff00] border border-[#ccff00]/30 font-extrabold text-xs flex items-center justify-center gap-2 transition-colors mt-2"
+                      >
+                        <Dumbbell className="w-4 h-4" />
+                        <span>Mulai Rencana Latihan di Workout Plan</span>
+                      </button>
                     </div>
+
+                  </div>
+                ) : activeTab === 'workout' ? (
+                  /* ------------------------------------------------------------ */
+                  /* SCREEN 2: WORKOUT PLANNER (AI BUILDER, 40 EXERCISE LIBRARY, PRESETS) */
+                  /* ------------------------------------------------------------ */
+                  <div className="p-4 space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b border-gray-800/80 pb-3">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setActiveTab('tracking')} className="text-gray-400 hover:text-white">
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <div>
+                          <h2 className="text-sm font-bold text-white">Workout Plan</h2>
+                          <p className="text-[10px] text-gray-400">Workout.cool Library & AI Routine</p>
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-[#ccff00]/15 text-[#ccff00] text-[10px] font-mono font-bold border border-[#ccff00]/30">
+                        40+ Gerakan
+                      </span>
+                    </div>
+
+                    {/* Sub-tab Switcher: [ ⚡ AI Builder | 📖 Library Gerakan | 📋 Preset Routine ] */}
+                    <div className="p-1 rounded-2xl bg-[#121620] border border-gray-800 grid grid-cols-3 text-center text-xs">
+                      <button
+                        onClick={() => setWorkoutSubTab('builder')}
+                        className={`py-1.5 rounded-xl font-bold transition-all text-[11px] ${
+                          workoutSubTab === 'builder'
+                            ? 'bg-[#ccff00] text-black shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        ⚡ AI Builder
+                      </button>
+                      <button
+                        onClick={() => setWorkoutSubTab('library')}
+                        className={`py-1.5 rounded-xl font-bold transition-all text-[11px] ${
+                          workoutSubTab === 'library'
+                            ? 'bg-[#ccff00] text-black shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        📖 Library (40)
+                      </button>
+                      <button
+                        onClick={() => setWorkoutSubTab('presets')}
+                        className={`py-1.5 rounded-xl font-bold transition-all text-[11px] ${
+                          workoutSubTab === 'presets'
+                            ? 'bg-[#ccff00] text-black shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        📋 Preset
+                      </button>
+                    </div>
+
+                    {/* 1. AI BUILDER SUB-TAB */}
+                    {workoutSubTab === 'builder' && (
+                      <div className="space-y-4">
+                        {/* 4-Step Stepper Header */}
+                        <div className="grid grid-cols-4 gap-1 text-center">
+                          {[
+                            { num: 1, label: 'Alat' },
+                            { num: 2, label: 'Otot' },
+                            { num: 3, label: 'Waktu' },
+                            { num: 4, label: 'Routine' },
+                          ].map((st) => (
+                            <button
+                              key={st.num}
+                              onClick={() => {
+                                if (st.num <= 3 || generatedPlan) setBuilderStep(st.num as any);
+                              }}
+                              className={`py-1.5 rounded-xl border text-[10px] font-bold transition-all ${
+                                builderStep === st.num
+                                  ? 'bg-[#ccff00] text-black border-[#ccff00] shadow'
+                                  : builderStep > st.num
+                                  ? 'bg-[#152010] text-[#ccff00] border-[#ccff00]/40'
+                                  : 'bg-[#121620] text-gray-500 border-gray-800'
+                              }`}
+                            >
+                              <span>{st.num}. {st.label}</span>
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* STEP 1: PILIH ALAT */}
+                        {builderStep === 1 && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-white">Langkah 1: Pilih Alat yang Tersedia</span>
+                              <button
+                                onClick={() => {
+                                  if (builderEquipment.length >= 6) setBuilderEquipment(['bodyweight']);
+                                  else setBuilderEquipment(['bodyweight', 'dumbbell', 'barbell', 'pull_up_bar', 'gym_machine', 'resistance_band']);
+                                }}
+                                className="text-[10px] text-[#ccff00] hover:underline"
+                              >
+                                {builderEquipment.length >= 6 ? 'Reset ke Bodyweight' : 'Pilih Semua'}
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              {[
+                                { id: 'bodyweight' as EquipmentType, label: 'Tanpa Alat (Bodyweight)', icon: '🧘' },
+                                { id: 'dumbbell' as EquipmentType, label: 'Dumbbell', icon: '🏋️' },
+                                { id: 'barbell' as EquipmentType, label: 'Barbell', icon: '🔩' },
+                                { id: 'pull_up_bar' as EquipmentType, label: 'Pull-Up Bar', icon: '⛓️' },
+                                { id: 'resistance_band' as EquipmentType, label: 'Resistance Bands', icon: '➰' },
+                                { id: 'gym_machine' as EquipmentType, label: 'Gym Machine', icon: '⚙️' },
+                              ].map((item) => {
+                                const isSel = builderEquipment.includes(item.id);
+                                return (
+                                  <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isSel) {
+                                        if (builderEquipment.length > 1) {
+                                          setBuilderEquipment(builderEquipment.filter((x) => x !== item.id));
+                                        }
+                                      } else {
+                                        setBuilderEquipment([...builderEquipment, item.id]);
+                                      }
+                                    }}
+                                    className={`p-2.5 rounded-2xl border text-left transition-all ${
+                                      isSel
+                                        ? 'bg-[#182315] border-[#ccff00] text-white shadow'
+                                        : 'bg-[#121620] border-gray-800 text-gray-400 hover:border-gray-700'
+                                    }`}
+                                  >
+                                    <div className="text-base mb-1">{item.icon}</div>
+                                    <span className="font-bold block text-[11px]">{item.label}</span>
+                                    <span className={`text-[9px] block mt-0.5 ${isSel ? 'text-[#ccff00]' : 'text-gray-500'}`}>
+                                      {isSel ? '✓ Dipilih' : '+ Pilih'}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            <button
+                              onClick={() => setBuilderStep(2)}
+                              className="w-full py-2.5 bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-xs rounded-xl shadow-lg transition-all"
+                            >
+                              Lanjut ke Target Otot →
+                            </button>
+                          </div>
+                        )}
+
+                        {/* STEP 2: TARGET OTOT */}
+                        {builderStep === 2 && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-white">Langkah 2: Pilih Target Otot</span>
+                              <span className="text-[10px] text-gray-400">Bisa lebih dari satu</span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              {[
+                                { id: 'full_body' as MuscleGroup, label: 'Full Body', icon: '⚡' },
+                                { id: 'chest' as MuscleGroup, label: 'Dada (Chest)', icon: '🛡️' },
+                                { id: 'back' as MuscleGroup, label: 'Punggung (Back)', icon: '🧗' },
+                                { id: 'quadriceps' as MuscleGroup, label: 'Kaki (Legs/Quads)', icon: '🦵' },
+                                { id: 'shoulders' as MuscleGroup, label: 'Bahu (Shoulders)', icon: '🦅' },
+                                { id: 'biceps' as MuscleGroup, label: 'Lengan (Arms/Biceps)', icon: '💪' },
+                                { id: 'abs' as MuscleGroup, label: 'Perut (Core/Abs)', icon: '🎯' },
+                              ].map((item) => {
+                                const isSel = builderMuscles.includes(item.id);
+                                return (
+                                  <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (item.id === 'full_body') {
+                                        setBuilderMuscles(['full_body']);
+                                        return;
+                                      }
+                                      let updated: MuscleGroup[] = builderMuscles.filter((x) => x !== 'full_body');
+                                      if (isSel) {
+                                        updated = updated.filter((x) => x !== item.id);
+                                        if (updated.length === 0) updated = ['full_body'];
+                                      } else {
+                                        updated.push(item.id);
+                                      }
+                                      setBuilderMuscles(updated);
+                                    }}
+                                    className={`p-2.5 rounded-2xl border text-left transition-all ${
+                                      isSel
+                                        ? 'bg-[#182315] border-[#ccff00] text-white shadow'
+                                        : 'bg-[#121620] border-gray-800 text-gray-400 hover:border-gray-700'
+                                    }`}
+                                  >
+                                    <div className="text-base mb-1">{item.icon}</div>
+                                    <span className="font-bold block text-[11px]">{item.label}</span>
+                                    <span className={`text-[9px] block mt-0.5 ${isSel ? 'text-[#ccff00]' : 'text-gray-500'}`}>
+                                      {isSel ? '✓ Aktif' : '+ Pilih'}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setBuilderStep(1)}
+                                className="py-2.5 px-4 bg-gray-800 text-gray-300 font-bold text-xs rounded-xl hover:bg-gray-700"
+                              >
+                                ← Kembali
+                              </button>
+                              <button
+                                onClick={() => setBuilderStep(3)}
+                                className="flex-1 py-2.5 bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-xs rounded-xl shadow-lg transition-all"
+                              >
+                                Lanjut ke Durasi & Level →
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* STEP 3: DURASI & TINGKAT KESULITAN */}
+                        {builderStep === 3 && (
+                          <div className="space-y-4">
+                            <div>
+                              <span className="text-xs font-bold text-white block mb-2">Durasi Latihan:</span>
+                              <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                                {[15, 30, 45, 60].map((dur) => (
+                                  <button
+                                    key={dur}
+                                    type="button"
+                                    onClick={() => setBuilderDuration(dur as any)}
+                                    className={`py-2 rounded-xl border font-mono font-bold transition-all ${
+                                      builderDuration === dur
+                                        ? 'bg-[#ccff00] text-black border-[#ccff00] shadow'
+                                        : 'bg-[#121620] text-gray-400 border-gray-800'
+                                    }`}
+                                  >
+                                    {dur} min
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div>
+                              <span className="text-xs font-bold text-white block mb-2">Tingkat Kesulitan:</span>
+                              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                                {[
+                                  { id: 'beginner' as ExerciseDifficulty, label: 'Pemula' },
+                                  { id: 'intermediate' as ExerciseDifficulty, label: 'Menengah' },
+                                  { id: 'advanced' as ExerciseDifficulty, label: 'Mahir' },
+                                ].map((lvl) => (
+                                  <button
+                                    key={lvl.id}
+                                    type="button"
+                                    onClick={() => setBuilderDifficulty(lvl.id)}
+                                    className={`py-2 rounded-xl border font-bold transition-all ${
+                                      builderDifficulty === lvl.id
+                                        ? 'bg-[#ccff00] text-black border-[#ccff00] shadow'
+                                        : 'bg-[#121620] text-gray-400 border-gray-800'
+                                    }`}
+                                  >
+                                    {lvl.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
+                              <button
+                                onClick={() => setBuilderStep(2)}
+                                className="py-2.5 px-4 bg-gray-800 text-gray-300 font-bold text-xs rounded-xl hover:bg-gray-700"
+                              >
+                                ← Kembali
+                              </button>
+                              <button
+                                onClick={handleGenerateWorkout}
+                                className="flex-1 py-3 bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-xs rounded-xl shadow-lg shadow-[#ccff00]/25 transition-all flex items-center justify-center gap-2"
+                              >
+                                <Zap className="w-4 h-4 fill-black" />
+                                <span>Generate My Workout Routine</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* STEP 4: HASIL ROUTINE GENERATED DENGAN VIDEO & SWAP */}
+                        {builderStep === 4 && generatedPlan && (
+                          <div className="space-y-3">
+                            {/* Plan Header Card */}
+                            <div className="p-3.5 rounded-3xl bg-gradient-to-br from-[#182618] to-[#121620] border border-[#ccff00]/40 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#ccff00]/20 text-[#ccff00] border border-[#ccff00]/40 font-mono">
+                                  {generatedPlan.difficulty.toUpperCase()}
+                                </span>
+                                <span className="text-xs font-bold text-[#ccff00] font-mono">
+                                  ~{generatedPlan.estimated_calories} kcal
+                                </span>
+                              </div>
+                              <h3 className="text-sm font-black text-white">{generatedPlan.title}</h3>
+                              <div className="flex items-center gap-3 text-[10px] text-gray-300 font-mono">
+                                <span>⏱️ {generatedPlan.estimated_duration_minutes} Menit</span>
+                                <span>•</span>
+                                <span>🎯 {generatedPlan.exercises.length} Gerakan</span>
+                              </div>
+                            </div>
+
+                            {/* Exercises List */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between px-1">
+                                <span className="text-xs font-bold text-white">Daftar Latihan Berurutan:</span>
+                                <span className="text-[10px] text-gray-400">Klik gerakan untuk tutorial</span>
+                              </div>
+
+                              {generatedPlan.exercises.map((item, idx) => (
+                                <div
+                                  key={`${item.exercise.id}-${idx}`}
+                                  className="p-2.5 rounded-2xl bg-[#121620] border border-gray-800 flex gap-2.5 items-center hover:border-gray-700 transition-colors"
+                                >
+                                  {/* Thumbnail Preview Video / Image */}
+                                  <div 
+                                    onClick={() => setSelectedDetailExercise(item.exercise)}
+                                    className="relative w-14 h-14 rounded-xl overflow-hidden bg-black/60 shrink-0 cursor-pointer border border-gray-700/80 group"
+                                  >
+                                    <img
+                                      src={item.exercise.full_video_image_url || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=600&q=80'}
+                                      alt={item.exercise.name}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    />
+                                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                      <Play className="w-3.5 h-3.5 text-white fill-white/80" />
+                                    </div>
+                                    <span className="absolute bottom-0.5 right-0.5 text-[8px] font-bold bg-black/80 text-[#ccff00] px-1 rounded font-mono">
+                                      #{idx + 1}
+                                    </span>
+                                  </div>
+
+                                  {/* Info */}
+                                  <div className="flex-1 min-w-0">
+                                    <h4 
+                                      onClick={() => setSelectedDetailExercise(item.exercise)}
+                                      className="text-xs font-bold text-white truncate cursor-pointer hover:text-[#ccff00]"
+                                    >
+                                      {item.exercise.name}
+                                    </h4>
+                                    <p className="text-[10px] text-gray-400 capitalize">
+                                      {item.exercise.primary_muscle} • {item.sets} set × {item.reps_or_duration}
+                                    </p>
+                                    <span className="text-[9px] text-teal-400 font-mono">
+                                      Istirahat: {item.rest_seconds}s
+                                    </span>
+                                  </div>
+
+                                  {/* Actions: Swap & Delete */}
+                                  <div className="flex flex-col gap-1 items-end shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSwapExercise(item.exercise.id)}
+                                      title="Tukar dengan variasi gerakan lain"
+                                      className="p-1.5 rounded-lg bg-gray-800 text-gray-300 hover:text-[#ccff00] hover:bg-gray-700 transition-colors"
+                                    >
+                                      <Shuffle className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteExercise(item.exercise.id)}
+                                      title="Hapus gerakan ini"
+                                      className="p-1.5 rounded-lg bg-gray-800 text-gray-400 hover:text-red-400 hover:bg-gray-700 transition-colors"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* CTA Action Buttons */}
+                            <div className="space-y-2 pt-2">
+                              <button
+                                onClick={() => handleStartGuidedWorkout(generatedPlan)}
+                                className="w-full py-3 rounded-2xl bg-[#ccff00] hover:bg-[#b8e600] text-black font-black text-xs shadow-lg shadow-[#ccff00]/25 flex items-center justify-center gap-2 transition-all"
+                              >
+                                <Play className="w-4 h-4 fill-black" />
+                                <span>Mulai Latihan Terpandu (Guided Player)</span>
+                              </button>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <button
+                                  onClick={handleGenerateWorkout}
+                                  className="py-2 px-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-gray-200 font-bold text-[11px] flex items-center justify-center gap-1.5"
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                  <span>Variasi Lain</span>
+                                </button>
+                                <button
+                                  onClick={() => setBuilderStep(1)}
+                                  className="py-2 px-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-gray-200 font-bold text-[11px] flex items-center justify-center gap-1.5"
+                                >
+                                  <Sliders className="w-3 h-3" />
+                                  <span>Ubah Kriteria</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 2. EXERCISE LIBRARY (40 GERAKAN DARI WORKOUT.COOL) */}
+                    {workoutSubTab === 'library' && (
+                      <div className="space-y-3">
+                        {/* Search & Filters */}
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              value={librarySearch}
+                              onChange={(e) => setLibrarySearch(e.target.value)}
+                              placeholder="Cari dari 40 gerakan (squat, push up, plank)..."
+                              className="w-full pl-8 pr-3 py-2 bg-[#121620] border border-gray-800 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#ccff00]"
+                            />
+                            {librarySearch && (
+                              <button
+                                onClick={() => setLibrarySearch('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Category Pills */}
+                          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[10px]">
+                            {['all', 'Strength', 'Cardio', 'HIIT', 'Yoga', 'Stretching', 'Bodyweight'].map((cat) => (
+                              <button
+                                key={cat}
+                                onClick={() => setLibraryCategory(cat)}
+                                className={`px-2.5 py-1 rounded-lg font-bold shrink-0 transition-colors ${
+                                  libraryCategory === cat
+                                    ? 'bg-[#ccff00] text-black'
+                                    : 'bg-[#121620] text-gray-400 border border-gray-800 hover:text-white'
+                                }`}
+                              >
+                                {cat === 'all' ? 'Semua' : cat}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* List of 40 Exercises */}
+                        <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+                          {INITIAL_EXERCISES
+                            .filter((ex) => {
+                              const matchSearch = !librarySearch || 
+                                ex.name.toLowerCase().includes(librarySearch.toLowerCase()) ||
+                                ex.primary_muscle.toLowerCase().includes(librarySearch.toLowerCase());
+                              const matchCat = libraryCategory === 'all' || ex.category.toLowerCase() === libraryCategory.toLowerCase();
+                              return matchSearch && matchCat;
+                            })
+                            .map((ex) => (
+                              <div
+                                key={ex.id}
+                                onClick={() => setSelectedDetailExercise(ex)}
+                                className="p-2.5 rounded-2xl bg-[#121620] border border-gray-800 hover:border-[#ccff00]/50 transition-all cursor-pointer flex gap-2.5 items-center group"
+                              >
+                                {/* Thumbnail */}
+                                <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-black/60 shrink-0 border border-gray-700/80">
+                                  <img
+                                    src={ex.full_video_image_url || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=600&q=80'}
+                                    alt={ex.name}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  />
+                                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                    <Play className="w-3.5 h-3.5 text-white fill-white/80" />
+                                  </div>
+                                </div>
+
+                                {/* Exercise Info */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-black/60 text-[#ccff00] font-mono border border-gray-800">
+                                      {ex.primary_muscle}
+                                    </span>
+                                    <span className="text-[9px] text-gray-500 capitalize">
+                                      {ex.difficulty}
+                                    </span>
+                                  </div>
+                                  <h4 className="text-xs font-bold text-white truncate group-hover:text-[#ccff00] transition-colors">
+                                    {ex.name}
+                                  </h4>
+                                  <p className="text-[10px] text-gray-400 capitalize truncate">
+                                    {ex.category} • {ex.equipment.includes('bodyweight') ? 'Tanpa Alat' : ex.equipment.join(', ')}
+                                  </p>
+                                </div>
+
+                                <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-white shrink-0" />
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. PRESET WORKOUT PLANS */}
+                    {workoutSubTab === 'presets' && (
+                      <div className="space-y-2.5">
+                        <span className="text-xs font-bold text-white block">Preset Rutinitas Populer:</span>
+
+                        {savedPlans.map((preset) => (
+                          <div
+                            key={preset.id}
+                            className="p-3.5 rounded-2xl bg-[#121620] border border-gray-800 space-y-2.5"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/30 font-mono">
+                                {preset.difficulty.toUpperCase()}
+                              </span>
+                              <span className="text-xs font-bold text-white font-mono">
+                                ⏱️ {preset.estimated_duration_minutes}m • ~{preset.estimated_calories} kcal
+                              </span>
+                            </div>
+
+                            <div>
+                              <h4 className="text-xs font-bold text-white">{preset.title}</h4>
+                              <p className="text-[10px] text-gray-400 line-clamp-2 mt-0.5">
+                                {preset.description}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-gray-800/80">
+                              <span className="text-[10px] text-gray-500 font-mono">
+                                {preset.exercises.length} Gerakan Terpandu
+                              </span>
+                              <button
+                                onClick={() => handleStartGuidedWorkout(preset)}
+                                className="px-3 py-1.5 bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-[10px] rounded-xl flex items-center gap-1 shadow"
+                              >
+                                <Play className="w-3 h-3 fill-black" />
+                                <span>Mulai Latihan</span>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                   </div>
                 ) : activeTab === 'moveit' ? (
@@ -1133,7 +2003,7 @@ export default function MobileDemoPage() {
                     {/* Header */}
                     <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-800/80 bg-[#0e1117]">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => setActiveTab('dashboard')} className="text-gray-400 hover:text-white">
+                        <button onClick={() => setActiveTab('tracking')} className="text-gray-400 hover:text-white">
                           <ChevronLeft className="w-5 h-5" />
                         </button>
                         <span className="text-xs font-bold text-white uppercase tracking-wider">MOVEIT Challenge</span>
@@ -1154,9 +2024,16 @@ export default function MobileDemoPage() {
                               : `Sesi ${moveItSessionNumber} (+1 Jam) • Random Foto`}
                           </span>
                         </div>
-                        <div className="px-2 py-0.5 rounded bg-black/70 text-[#ccff00] font-mono text-[10px] font-bold flex items-center gap-1 border border-[#ccff00]/30">
+                        <div className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold flex items-center gap-1 border transition-colors ${
+                          isWebcamActive 
+                            ? 'bg-black/70 text-[#ccff00] border-[#ccff00]/30' 
+                            : 'bg-black/80 text-amber-400 border-amber-400/40 animate-pulse'
+                        }`}>
                           <Clock className="w-3 h-3" />
                           <span>00:{workoutSecondsLeft < 10 ? `0${workoutSecondsLeft}` : workoutSecondsLeft}</span>
+                          {!isWebcamActive && !workoutCompleted && (
+                            <span className="text-[8px] font-normal tracking-tight ml-0.5">(Menunggu Kamera)</span>
+                          )}
                         </div>
                       </div>
 
@@ -1164,14 +2041,16 @@ export default function MobileDemoPage() {
                       <div className="relative flex-1 flex items-center justify-center my-1 rounded-xl overflow-hidden bg-black/50">
                         {currentMoveItMedia.type === 'video' ? (
                           <video
+                            ref={moveItGuideVideoRef}
                             src={currentMoveItMedia.url}
                             onError={(e) => {
                               if (e.currentTarget.src !== currentMoveItMedia.fallbackUrl) {
                                 e.currentTarget.src = currentMoveItMedia.fallbackUrl;
                               }
                             }}
-                            autoPlay
-                            loop
+                            onEnded={() => {
+                              handleFinishWorkout();
+                            }}
                             muted
                             playsInline
                             className="absolute inset-0 w-full h-full object-cover"
@@ -1189,6 +2068,36 @@ export default function MobileDemoPage() {
                           />
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+
+                        {/* Overlay when Camera is NOT active yet */}
+                        {!isWebcamActive && !workoutCompleted && (
+                          <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center p-3 text-center transition-all animate-fadeIn">
+                            <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-400 flex items-center justify-center mb-1 shadow-lg shadow-amber-500/20">
+                              <Pause className="w-4 h-4 fill-amber-400" />
+                            </div>
+                            <span className="text-[11px] font-extrabold text-amber-300 flex items-center gap-1">
+                              Video Menunggu Kamera Aktif
+                            </span>
+                            <p className="text-[9px] text-gray-300 max-w-[230px] mt-0.5 leading-tight">
+                              Video panduan dijeda agar Anda tidak ketinggalan gerakan. Aktifkan kamera di bawah untuk mulai memutar video & menghitung repetisi.
+                            </p>
+                            <button
+                              onClick={requestWebcamAccess}
+                              className="mt-2 px-2.5 py-1 rounded-lg bg-[#ccff00] text-black font-extrabold text-[10px] flex items-center gap-1 shadow-md shadow-[#ccff00]/30 hover:bg-[#b8e600] active:scale-95 transition-all"
+                            >
+                              <Camera className="w-3 h-3" />
+                              <span>Izinkan Akses Kamera</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Live active indicator badge when camera is running */}
+                        {isWebcamActive && !workoutCompleted && currentMoveItMedia.type === 'video' && (
+                          <div className="absolute top-2 right-2 z-20 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/80 border border-[#ccff00]/50 text-[#ccff00] text-[8px] font-bold tracking-wider">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#ccff00] animate-ping" />
+                            <span>TUTORIAL BERJALAN</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Movement Name & Reps Target */}
@@ -1208,8 +2117,15 @@ export default function MobileDemoPage() {
                       
                       {/* Reps Badge & Verified Check */}
                       <div className="flex items-center justify-between z-10">
-                        <div className="px-2.5 py-1 rounded-xl bg-black/80 border border-gray-700 text-white font-mono text-base font-extrabold">
-                          <span className="text-[#ccff00]">{repCount}</span>/{repTarget} <span className="text-xs font-normal text-gray-400">Reps</span>
+                        <div className="px-2.5 py-1 rounded-xl bg-black/80 border border-gray-700 text-white font-mono text-base font-extrabold flex items-center gap-1.5">
+                          <div>
+                            <span className="text-[#ccff00]">{repCount}</span>/{repTarget} <span className="text-xs font-normal text-gray-400">Reps</span>
+                          </div>
+                          {!isWebcamActive && !workoutCompleted && (
+                            <span className="text-[8px] font-sans font-bold text-amber-400 bg-amber-400/15 border border-amber-400/30 px-1.5 py-0.5 rounded-md">
+                              Menunggu Kamera
+                            </span>
+                          )}
                         </div>
 
                         <div className="w-8 h-8 rounded-full bg-[#ccff00] text-black flex items-center justify-center font-bold shadow-lg shadow-[#ccff00]/40">
@@ -1313,7 +2229,7 @@ export default function MobileDemoPage() {
                         <button 
                           onClick={() => {
                             if (profileSubView !== 'main') setProfileSubView('main');
-                            else setActiveTab('dashboard');
+                            else setActiveTab('tracking');
                           }} 
                           className="text-gray-400 hover:text-white"
                         >
@@ -1896,80 +2812,268 @@ export default function MobileDemoPage() {
                   </div>
                 ) : (
                   /* ------------------------------------------------------------ */
-                  /* SCREEN 5: REWARDS MARKETPLACE */
+                  /* SCREEN 4: REWARDS, WALLET & MY VOUCHERS SUITE */
                   /* ------------------------------------------------------------ */
                   <div className="p-4 space-y-4">
+                    {/* Header */}
                     <div className="flex items-center justify-between border-b border-gray-800/80 pb-3">
                       <div>
-                        <h2 className="text-sm font-bold text-white">Rewards Marketplace</h2>
-                        <p className="text-[10px] text-gray-400">Tukar Move Coins ke Voucher</p>
+                        <h2 className="text-sm font-bold text-white">Rewards & Wallet</h2>
+                        <p className="text-[10px] text-gray-400">Marketplace, Saldo Dompet & Voucher</p>
                       </div>
                       <div className="px-2.5 py-1 rounded-full bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/30 font-mono text-xs font-bold">
                         {walletBalance} Coins
                       </div>
                     </div>
 
-                    {redeemedVoucher && (
-                      <div className="p-3 rounded-2xl bg-[#121620] border border-[#ccff00]/50 text-center space-y-2">
-                        <span className="text-[10px] text-[#ccff00] font-bold uppercase tracking-wider block">Voucher Siap Digunakan!</span>
-                        <h4 className="text-xs font-bold text-white">{redeemedVoucher.title}</h4>
-                        
-                        {/* Mock QR */}
-                        <div className="p-2 bg-white rounded-xl mx-auto w-24 h-24 flex items-center justify-center">
-                          <QrCode className="w-20 h-20 text-black" />
+                    {/* Sub-tab Switcher: [ 🎁 Marketplace | 💳 Dompet | 🎟️ Voucher Saya ] */}
+                    <div className="p-1 rounded-2xl bg-[#121620] border border-gray-800 grid grid-cols-3 text-center text-xs">
+                      <button
+                        onClick={() => setRewardsSubTab('marketplace')}
+                        className={`py-1.5 rounded-xl font-bold transition-all text-[11px] ${
+                          rewardsSubTab === 'marketplace'
+                            ? 'bg-[#ccff00] text-black shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        🎁 Hadiah
+                      </button>
+                      <button
+                        onClick={() => setRewardsSubTab('wallet')}
+                        className={`py-1.5 rounded-xl font-bold transition-all text-[11px] ${
+                          rewardsSubTab === 'wallet'
+                            ? 'bg-[#ccff00] text-black shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        💳 Dompet
+                      </button>
+                      <button
+                        onClick={() => setRewardsSubTab('vouchers')}
+                        className={`py-1.5 rounded-xl font-bold transition-all text-[11px] ${
+                          rewardsSubTab === 'vouchers'
+                            ? 'bg-[#ccff00] text-black shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        🎟️ Voucher ({redemptionsList.length})
+                      </button>
+                    </div>
+
+                    {/* SUB-TAB 1: REWARDS MARKETPLACE */}
+                    {rewardsSubTab === 'marketplace' && (
+                      <div className="space-y-3">
+                        {redeemedVoucher && (
+                          <div className="p-3 rounded-2xl bg-[#152010] border border-[#ccff00]/50 text-center space-y-1.5">
+                            <span className="text-[10px] text-[#ccff00] font-bold uppercase tracking-wider block">
+                              ✓ Voucher Berhasil Diklaim!
+                            </span>
+                            <h4 className="text-xs font-bold text-white">{redeemedVoucher.title}</h4>
+                            <p className="text-[10px] text-gray-300">
+                              Voucher telah ditambahkan ke tab <strong className="text-[#ccff00]">Voucher Saya</strong>.
+                            </p>
+                            <button
+                              onClick={() => setRewardsSubTab('vouchers')}
+                              className="px-3 py-1 bg-[#ccff00] text-black text-[10px] font-bold rounded-lg mt-1"
+                            >
+                              Buka Voucher Saya →
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="space-y-2.5 max-h-[440px] overflow-y-auto pr-1">
+                          {rewardsList.map((rw) => (
+                            <div key={rw.id} className="p-2.5 rounded-2xl bg-[#121620] border border-gray-800 flex gap-2.5 items-center hover:border-gray-700 transition-colors">
+                              <img src={rw.image_url} alt={rw.title} className="w-14 h-14 rounded-xl object-cover shrink-0 border border-gray-800" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <span className="text-[8px] font-bold uppercase px-1.5 py-0.2 rounded bg-black/60 text-amber-300 font-mono border border-gray-800">
+                                    {rw.category}
+                                  </span>
+                                  <span className="text-[9px] text-gray-400">
+                                    {rw.category === 'digital_wallet' ? 'E-Wallet' : rw.category === 'voucher' ? 'Marketplace' : 'Reward Partner'}
+                                  </span>
+                                </div>
+                                <h5 className="text-xs font-bold text-white truncate">{rw.title}</h5>
+                                <span className="text-[10px] text-[#ccff00] font-mono font-bold block mt-0.5">
+                                  {rw.coin_price} Coins
+                                </span>
+                                <button
+                                  onClick={() => handleRedeem(rw)}
+                                  disabled={walletBalance < rw.coin_price}
+                                  className="mt-1 px-3 py-1 bg-[#ccff00] hover:bg-[#b8e600] text-black text-[9px] font-bold rounded-lg disabled:opacity-30 transition-all"
+                                >
+                                  Klaim Voucher
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <span className="font-mono text-[10px] font-bold text-amber-300 block">{redeemedVoucher.code}</span>
                       </div>
                     )}
 
-                    <div className="space-y-2.5">
-                      {rewardsList.map((rw) => (
-                        <div key={rw.id} className="p-2.5 rounded-2xl bg-[#121620] border border-gray-800 flex gap-2.5 items-center">
-                          <img src={rw.image_url} alt={rw.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <h5 className="text-xs font-bold text-white truncate">{rw.title}</h5>
-                            <span className="text-[10px] text-[#ccff00] font-mono font-bold block mt-0.5">
-                              {rw.coin_price} Coins
+                    {/* SUB-TAB 2: WALLET / DOMPET */}
+                    {rewardsSubTab === 'wallet' && (
+                      <div className="space-y-3">
+                        {/* Hero Wallet Card */}
+                        <div className="p-4 rounded-3xl bg-gradient-to-br from-[#1b2512] via-[#121620] to-[#0c0f16] border border-[#ccff00]/40 shadow-xl space-y-3">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400 font-medium">Saldo Move Coins</span>
+                            <div className="w-7 h-7 rounded-full bg-[#ccff00]/20 flex items-center justify-center">
+                              <Coins className="w-4 h-4 text-[#ccff00]" />
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-2xl font-black text-[#ccff00] font-mono tracking-tight block">
+                              {walletBalance} 🪙
                             </span>
-                            <button
-                              onClick={() => handleRedeem(rw)}
-                              disabled={walletBalance < rw.coin_price}
-                              className="mt-1 px-2.5 py-1 bg-[#ccff00] hover:bg-[#b8e600] text-black text-[9px] font-bold rounded-lg disabled:opacity-30"
-                            >
-                              Klaim Voucher
-                            </button>
+                            <span className="text-[10px] text-gray-400 block mt-0.5">
+                              Tersedia untuk ditukarkan ke voucher merchant
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800/80 text-[10px] font-mono">
+                            <div className="p-2 rounded-xl bg-black/40 border border-gray-800">
+                              <span className="text-gray-400 block">Total Didapat</span>
+                              <span className="text-[#ccff00] font-bold text-xs mt-0.5 block">
+                                +{walletSummary?.totalEarned ?? 75}
+                              </span>
+                            </div>
+                            <div className="p-2 rounded-xl bg-black/40 border border-gray-800">
+                              <span className="text-gray-400 block">Total Ditukar</span>
+                              <span className="text-orange-400 font-bold text-xs mt-0.5 block">
+                                -{walletSummary?.totalSpent ?? 0}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
+
+                        {/* Mutation Ledger */}
+                        <div className="space-y-2">
+                          <span className="text-xs font-bold text-white block">Riwayat Mutasi Koin:</span>
+                          
+                          <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                            {transactionsList.length > 0 ? (
+                              transactionsList.map((tx) => (
+                                <div key={tx.id} className="p-2.5 rounded-2xl bg-[#121620] border border-gray-800 flex items-center justify-between text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${
+                                      tx.transaction_type === 'earn' ? 'bg-[#ccff00]/15 text-[#ccff00]' : 'bg-orange-500/15 text-orange-400'
+                                    }`}>
+                                      {tx.transaction_type === 'earn' ? <TrendingUp className="w-3.5 h-3.5" /> : <Gift className="w-3.5 h-3.5" />}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <h6 className="text-[11px] font-bold text-white truncate max-w-[170px]">{tx.description}</h6>
+                                      <span className="text-[9px] text-gray-500 block">
+                                        {new Date(tx.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className={`font-mono font-bold text-xs ${tx.transaction_type === 'earn' ? 'text-[#ccff00]' : 'text-orange-400'}`}>
+                                    {tx.transaction_type === 'earn' ? `+${tx.amount}` : `${tx.amount}`}
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-xs text-gray-500">
+                                Belum ada mutasi transaksi.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SUB-TAB 3: MY VOUCHERS / VOUCHER SAYA */}
+                    {rewardsSubTab === 'vouchers' && (
+                      <div className="space-y-3">
+                        {redemptionsList.length === 0 ? (
+                          <div className="p-6 rounded-3xl bg-[#121620] border border-gray-800 text-center space-y-3">
+                            <div className="w-12 h-12 rounded-full bg-gray-800 mx-auto flex items-center justify-center text-gray-400">
+                              <TicketCheck className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-white">Belum Ada Voucher</h4>
+                              <p className="text-[10px] text-gray-400 mt-1">
+                                Kumpulkan Move Coins dan tukarkan di tab Hadiah.
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setRewardsSubTab('marketplace')}
+                              className="px-4 py-2 bg-[#ccff00] text-black font-extrabold text-xs rounded-xl"
+                            >
+                              Tukar Voucher Sekarang
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2.5 max-h-[440px] overflow-y-auto pr-1">
+                            {redemptionsList.map((rc) => {
+                              const rwInfo = rewardsList.find((r) => r.id === rc.reward_id);
+                              return (
+                                <div key={rc.id} className="p-3 rounded-2xl bg-[#121620] border border-gray-800 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/30 font-mono">
+                                        Aktif
+                                      </span>
+                                      <span className="text-[10px] text-gray-400">
+                                        {rwInfo?.category === 'digital_wallet' ? 'E-Wallet' : rwInfo?.category === 'voucher' ? 'Marketplace' : 'Merchant Partner'}
+                                      </span>
+                                    </div>
+                                    <span className="text-[9px] text-gray-500 font-mono">
+                                      Klaim: {new Date(rc.created_at).toLocaleDateString()}
+                                    </span>
+                                  </div>
+
+                                  <h4 className="text-xs font-bold text-white">{rwInfo?.title || 'Voucher Diskon Move2Earn'}</h4>
+
+                                  {/* Code & Actions */}
+                                  <div className="p-2 rounded-xl bg-black/60 border border-gray-700/80 flex items-center justify-between">
+                                    <div>
+                                      <span className="text-[8px] text-gray-400 uppercase tracking-wider block">Kode Voucher:</span>
+                                      <span className="font-mono text-xs font-bold text-amber-300 tracking-wider">
+                                        {rc.voucher_code}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        onClick={() => handleCopyVoucherCode(rc.voucher_code || '')}
+                                        title="Salin kode voucher"
+                                        className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
+                                      >
+                                        <Copy className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => setQrModalVoucher(rc)}
+                                        title="Buka QR Code"
+                                        className="p-1.5 rounded-lg bg-[#ccff00] text-black hover:bg-[#b8e600] transition-colors"
+                                      >
+                                        <QrCode className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                   </div>
                 )}
 
               </div>
 
               {/* ============================================================== */}
-              {/* THE 5 BOTTOM NAVIGATION TABS (EXACTLY MATCHING SCREENSHOT) */}
+              {/* THE 5 BOTTOM NAVIGATION TABS */}
               {/* ============================================================== */}
               <div className="absolute bottom-0 inset-x-0 h-16 bg-[#090c12]/95 backdrop-blur-md border-t border-gray-800/80 px-2 flex items-center justify-around z-30 select-none">
                 
-                {/* 1. Dashboard Tab */}
-                <button
-                  onClick={() => {
-                    setIsLoggedIn(true);
-                    setActiveTab('dashboard');
-                    setProfileSubView('main');
-                  }}
-                  className={`flex flex-col items-center gap-1 flex-1 py-1 transition-colors ${
-                    activeTab === 'dashboard' && profileSubView !== 'auth' ? 'text-[#ccff00]' : 'text-gray-400 hover:text-gray-200'
-                  }`}
-                >
-                  <div className={`p-1 rounded-lg ${activeTab === 'dashboard' && profileSubView !== 'auth' ? 'bg-[#ccff00]/15' : ''}`}>
-                    <Flame className="w-4 h-4" />
-                  </div>
-                  <span className="text-[9px] font-semibold">Dashboard</span>
-                </button>
-
-                {/* 2. Tracking Tab */}
+                {/* 1. Tracking Tab */}
                 <button
                   onClick={() => {
                     setIsLoggedIn(true);
@@ -1977,13 +3081,30 @@ export default function MobileDemoPage() {
                     setProfileSubView('main');
                   }}
                   className={`flex flex-col items-center gap-1 flex-1 py-1 transition-colors ${
-                    activeTab === 'tracking' ? 'text-[#ccff00]' : 'text-gray-400 hover:text-gray-200'
+                    activeTab === 'tracking' && profileSubView !== 'auth' ? 'text-[#ccff00]' : 'text-gray-400 hover:text-gray-200'
                   }`}
                 >
-                  <div className={`p-1 rounded-lg ${activeTab === 'tracking' ? 'bg-[#ccff00]/15' : ''}`}>
+                  <div className={`p-1 rounded-lg ${activeTab === 'tracking' && profileSubView !== 'auth' ? 'bg-[#ccff00]/15' : ''}`}>
                     <TrendingUp className="w-4 h-4" />
                   </div>
                   <span className="text-[9px] font-semibold">Tracking</span>
+                </button>
+
+                {/* 2. Workout Plan Tab */}
+                <button
+                  onClick={() => {
+                    setIsLoggedIn(true);
+                    setActiveTab('workout');
+                    setProfileSubView('main');
+                  }}
+                  className={`flex flex-col items-center gap-1 flex-1 py-1 transition-colors ${
+                    activeTab === 'workout' ? 'text-[#ccff00]' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <div className={`p-1 rounded-lg ${activeTab === 'workout' ? 'bg-[#ccff00]/15' : ''}`}>
+                    <Dumbbell className="w-4 h-4" />
+                  </div>
+                  <span className="text-[9px] font-semibold">Workout</span>
                 </button>
 
                 {/* 3. Center MoveIt Tab (Prominent glowing pill button) */}
@@ -1992,8 +3113,12 @@ export default function MobileDemoPage() {
                     setIsLoggedIn(true);
                     setActiveTab('moveit');
                     setWorkoutSecondsLeft(30);
-                    setRepCount(23);
+                    setRepCount(0);
                     setWorkoutCompleted(false);
+                    if (moveItGuideVideoRef.current) {
+                      moveItGuideVideoRef.current.currentTime = 0;
+                      moveItGuideVideoRef.current.pause();
+                    }
                   }}
                   className="flex flex-col items-center -mt-3 group"
                 >
@@ -2049,7 +3174,8 @@ export default function MobileDemoPage() {
         {/* ==================================================================== */}
         {/* COLUMN 2: PRESENTER COCKPIT (FOR PITCHING TO JUDGES) */}
         {/* ==================================================================== */}
-        <div className="lg:col-span-6 xl:col-span-7 space-y-6">
+        {showPresenterPanel && (
+          <div className="lg:col-span-6 xl:col-span-7 space-y-6">
           
           {/* Quick Screen Switcher (Direct Pitch Buttons) */}
           <div className="p-6 rounded-3xl bg-[#0f1420] border border-gray-800 shadow-xl space-y-4">
@@ -2091,30 +3217,7 @@ export default function MobileDemoPage() {
                 </p>
               </button>
 
-              {/* Button 1: Dashboard */}
-              <button
-                onClick={() => {
-                  setIsLoggedIn(true);
-                  setActiveTab('dashboard');
-                  setProfileSubView('main');
-                  if (soundEnabled) playSound('click');
-                }}
-                className={`p-3.5 rounded-2xl border text-left transition-all ${
-                  activeTab === 'dashboard' && isLoggedIn && profileSubView !== 'auth'
-                    ? 'bg-[#152010] border-[#ccff00] text-white shadow-md'
-                    : 'bg-[#131926] border-gray-800 hover:border-gray-700 text-gray-300'
-                }`}
-              >
-                <div className="flex items-center justify-between text-xs font-bold text-[#ccff00] mb-1">
-                  <span>2. Dashboard Metrik Harian</span>
-                  <ChevronRight className="w-4 h-4" />
-                </div>
-                <p className="text-[11px] text-gray-300">
-                  Ringkasan 68% Daily Goal, calories, steps, streak, dan grafik mingguan.
-                </p>
-              </button>
-
-              {/* Button 2: Activity Tracking */}
+              {/* Button 1: Tracking */}
               <button
                 onClick={() => {
                   setIsLoggedIn(true);
@@ -2123,21 +3226,70 @@ export default function MobileDemoPage() {
                   if (soundEnabled) playSound('click');
                 }}
                 className={`p-3.5 rounded-2xl border text-left transition-all ${
-                  activeTab === 'tracking'
+                  activeTab === 'tracking' && isLoggedIn && profileSubView !== 'auth'
                     ? 'bg-[#152010] border-[#ccff00] text-white shadow-md'
                     : 'bg-[#131926] border-gray-800 hover:border-gray-700 text-gray-300'
                 }`}
               >
                 <div className="flex items-center justify-between text-xs font-bold text-[#ccff00] mb-1">
-                  <span>3. Tracking Olahraga & Sosmed</span>
+                  <span>2. Tracking Metrik & Screentime</span>
                   <ChevronRight className="w-4 h-4" />
                 </div>
                 <p className="text-[11px] text-gray-300">
-                  Grafik bar jam-jaman screen time sosmed dan audit log sesi olahraga hari ini.
+                  Ringkasan 68% Daily Goal, calories, steps, streak, dan grafik bar sosmed.
                 </p>
               </button>
 
-              {/* Button 3: Simulasi Notifikasi Masuk */}
+              {/* Button 2: Workout Plan */}
+              <button
+                onClick={() => {
+                  setIsLoggedIn(true);
+                  setActiveTab('workout');
+                  setProfileSubView('main');
+                  if (soundEnabled) playSound('click');
+                }}
+                className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  activeTab === 'workout'
+                    ? 'bg-[#152010] border-[#ccff00] text-white shadow-md'
+                    : 'bg-[#131926] border-gray-800 hover:border-gray-700 text-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-[#ccff00] mb-1">
+                  <span>3. Workout Plan (AI & 40 Gerakan)</span>
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+                <p className="text-[11px] text-gray-300">
+                  AI Routine Builder 4 langkah, 40 exercise video Workout.cool & Guided Player.
+                </p>
+              </button>
+
+              {/* Button 3: Rewards & Wallet Suite */}
+              <button
+                onClick={() => {
+                  setIsLoggedIn(true);
+                  setActiveTab('rewards');
+                  setProfileSubView('main');
+                  if (soundEnabled) playSound('click');
+                }}
+                className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  activeTab === 'rewards'
+                    ? 'bg-[#152010] border-[#ccff00] text-white shadow-md'
+                    : 'bg-[#131926] border-gray-800 hover:border-gray-700 text-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-amber-400 mb-1">
+                  <span className="flex items-center gap-1.5">
+                    <Gift className="w-3.5 h-3.5" />
+                    Rewards, Dompet & Voucher
+                  </span>
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+                <p className="text-[11px] text-gray-300">
+                  Klaim voucher merchant, pantau mutasi koin, dan scan QR voucher aktif.
+                </p>
+              </button>
+
+              {/* Button 4: Simulasi Notifikasi Masuk */}
               <button
                 onClick={triggerExternalSocialNotification}
                 className="p-3.5 rounded-2xl bg-gradient-to-br from-pink-950/40 to-[#131926] border border-pink-500/40 hover:border-pink-400 text-left transition-all group"
@@ -2151,7 +3303,7 @@ export default function MobileDemoPage() {
                 </p>
               </button>
 
-              {/* Button 4: MoveIt Challenge */}
+              {/* Button 5: MoveIt Challenge */}
               <button
                 onClick={() => {
                   setIsLoggedIn(true);
@@ -2159,6 +3311,10 @@ export default function MobileDemoPage() {
                   setWorkoutSecondsLeft(30);
                   setRepCount(23);
                   setWorkoutCompleted(false);
+                  if (moveItGuideVideoRef.current) {
+                    moveItGuideVideoRef.current.currentTime = 0;
+                    moveItGuideVideoRef.current.pause();
+                  }
                   if (soundEnabled) playSound('click');
                 }}
                 className={`p-3.5 rounded-2xl border text-left transition-all ${
@@ -2176,7 +3332,7 @@ export default function MobileDemoPage() {
                 </p>
               </button>
 
-              {/* Button 5: MoveIt Pro AI Coach (Fitur Premium) */}
+              {/* Button 6: MoveIt Pro AI Coach (Fitur Premium) */}
               <button
                 onClick={() => {
                   setIsLoggedIn(true);
@@ -2202,7 +3358,7 @@ export default function MobileDemoPage() {
                 </p>
               </button>
 
-              {/* Button 6: Help & Support */}
+              {/* Button 7: Help & Support */}
               <button
                 onClick={() => {
                   setIsLoggedIn(true);
@@ -2225,7 +3381,7 @@ export default function MobileDemoPage() {
                 </p>
               </button>
 
-              {/* Button 7: Focus & Notifications (Threshold Dropbox & Add Apps) */}
+              {/* Button 8: Focus & Notifications (Threshold Dropbox & Add Apps) */}
               <button
                 onClick={() => {
                   setIsLoggedIn(true);
@@ -2251,7 +3407,7 @@ export default function MobileDemoPage() {
                 </p>
               </button>
 
-              {/* Button 8: Sign Out */}
+              {/* Button 9: Sign Out */}
               <button
                 onClick={handleSignOut}
                 className="p-3.5 rounded-2xl bg-red-950/30 border border-red-500/40 hover:border-red-400 text-left transition-all"
@@ -2352,9 +3508,63 @@ export default function MobileDemoPage() {
             </div>
           </div>
 
-        </div>
+          </div>
+        )}
 
       </div>
+
+      {/* ============================================================== */}
+      {/* MODALS: EXERCISE DETAIL, GUIDED PLAYER, & QR CODE VOUCHER */}
+      {/* ============================================================== */}
+      <ExerciseDetailModal
+        exercise={selectedDetailExercise}
+        onClose={() => setSelectedDetailExercise(null)}
+        onStartSingle={handleStartSingleExercise}
+      />
+
+      {activeGuidedPlan && (
+        <GuidedWorkoutPlayer
+          plan={activeGuidedPlan}
+          onClose={() => setActiveGuidedPlan(null)}
+          onFinish={handleFinishGuidedWorkout}
+        />
+      )}
+
+      {/* QR Code Voucher Modal */}
+      {qrModalVoucher && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#121620] border border-gray-800 rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white">QR Voucher Merchant</h3>
+              <button 
+                onClick={() => setQrModalVoucher(null)} 
+                className="p-1.5 rounded-full text-gray-400 hover:text-white bg-gray-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="p-4 bg-white rounded-2xl mx-auto w-48 h-48 flex items-center justify-center shadow-lg">
+              <QrCode className="w-40 h-40 text-black" />
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-400">Tunjukkan kode QR ini ke kasir merchant saat checkout</p>
+              <span className="font-mono text-sm font-extrabold text-[#ccff00] block mt-1 tracking-wider">
+                {qrModalVoucher.voucher_code}
+              </span>
+            </div>
+
+            <button
+              onClick={() => handleCopyVoucherCode(qrModalVoucher.voucher_code || '')}
+              className="w-full py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              <span>{copiedCode === qrModalVoucher.voucher_code ? '✓ Tersalin ke Clipboard!' : 'Salin Kode Voucher'}</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

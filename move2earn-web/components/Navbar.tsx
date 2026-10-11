@@ -12,7 +12,6 @@ import {
   Gift, 
   TicketCheck, 
   ShieldAlert, 
-  Smartphone,
   Dumbbell,
   Menu,
   X
@@ -39,7 +38,6 @@ export default function Navbar() {
   }, []);
 
   const navLinks = [
-    { href: '/demo', label: '📱 Demo HP', icon: Smartphone, highlight: true },
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/workout', label: 'Workout', icon: Dumbbell },
     { href: '/history', label: 'History', icon: History },
@@ -73,7 +71,6 @@ export default function Navbar() {
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
-              const isHighlight = (link as any).highlight;
               return (
                 <Link
                   key={link.href}
@@ -81,12 +78,10 @@ export default function Navbar() {
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-green-500/20 text-green-300 border border-green-500/50 shadow-md shadow-green-500/10'
-                      : isHighlight
-                      ? 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/40 hover:border-emerald-400 font-semibold shadow-sm'
                       : 'text-gray-300 hover:text-white hover:bg-gray-800/60'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isHighlight ? 'text-emerald-400 animate-pulse' : ''}`} />
+                  <Icon className="w-4 h-4" />
                   {link.label}
                 </Link>
               );
