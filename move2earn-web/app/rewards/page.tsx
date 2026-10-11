@@ -45,7 +45,8 @@ export default function RewardsPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-white">Marketplace & Katalog Reward</h1>
             <span className="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full font-mono uppercase">
-              Demo Rewards Included
+              
+              Rewards Included
             </span>
           </div>
           <p className="text-xs text-gray-400 mt-1 max-w-xl">
