@@ -4,6 +4,7 @@ import {
   WalletTransaction, 
   Redemption, 
   DashboardSummary,
+  ActivitySummary,
   WorkoutSession,
   ScreenTimeSummary
 } from './types';
@@ -237,6 +238,74 @@ export const Move2EarnStore = {
       coins_today: 45,
       current_balance: balance,
       app_breakdown: screentimeData
+    };
+  },
+
+  getActivitySummary(): ActivitySummary {
+    return {
+      daily_goal_minutes: 35,
+      active_minutes: 24,
+      daily_goal_percent: 68,
+      screen_time_saved_minutes: 80, // 1h 20m
+      calories_burned: 245,
+      steps_count: 3200,
+      workout_sessions_count: 4,
+      day_streak: 7,
+      this_week: [
+        { day: 'Mon', minutes: 20 },
+        { day: 'Tue', minutes: 30 },
+        { day: 'Wed', minutes: 25 },
+        { day: 'Thu', minutes: 35, active: true },
+        { day: 'Fri', minutes: 20 },
+        { day: 'Sat', minutes: 28 },
+        { day: 'Sun', minutes: 15 },
+      ],
+      today_hourly_screentime: [
+        { hour: '6', minutes: 10 },
+        { hour: '9', minutes: 18 },
+        { hour: '12', minutes: 28, active: true },
+        { hour: '15', minutes: 12 },
+        { hour: '18', minutes: 8 },
+        { hour: '21', minutes: 4 },
+      ],
+      recent_sessions: [
+        {
+          id: 'ws-1',
+          title: 'Full Body Move',
+          duration_minutes: 10,
+          calories: 120,
+          coins: 50,
+          time: 'Today, 10:24',
+          status: 'verified'
+        },
+        {
+          id: 'ws-2',
+          title: 'Jumping Jacks',
+          duration_minutes: 3,
+          calories: 40,
+          coins: 15,
+          time: 'Today, 14:20',
+          status: 'verified'
+        },
+        {
+          id: 'ws-3',
+          title: 'Squat Challenge',
+          duration_minutes: 5,
+          calories: 60,
+          coins: 20,
+          time: 'Today, 10:05',
+          status: 'verified'
+        },
+        {
+          id: 'ws-4',
+          title: 'Stretching & Mobility',
+          duration_minutes: 5,
+          calories: 35,
+          coins: 15,
+          time: 'Today, 08:12',
+          status: 'verified'
+        }
+      ]
     };
   },
 

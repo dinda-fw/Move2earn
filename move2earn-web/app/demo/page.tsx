@@ -4,13 +4,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
   Flame, 
-  Smartphone, 
-  Video, 
-  Camera, 
+  Dumbbell, 
   Coins, 
   Gift, 
   Sparkles, 
+  Bell, 
   BellRing, 
+  Shield, 
   ShieldCheck, 
   CheckCircle2, 
   TrendingUp, 
@@ -19,23 +19,182 @@ import {
   Pause, 
   Volume2, 
   VolumeX, 
-  Heart, 
-  MessageCircle, 
-  Share2, 
   TicketCheck, 
   ArrowRight, 
-  Layers, 
   QrCode, 
   Copy, 
-  ChevronRight,
-  ExternalLink,
-  Wifi,
-  BatteryCharging
+  ChevronRight, 
+  ChevronLeft, 
+  Wifi, 
+  BatteryCharging, 
+  User, 
+  Settings, 
+  Clock, 
+  Footprints, 
+  Zap, 
+  Smartphone, 
+  Camera, 
+  Maximize2, 
+  LogOut, 
+  Check, 
+  HelpCircle, 
+  Crown, 
+  MessageSquare, 
+  Send, 
+  Bot, 
+  Lock, 
+  Mail, 
+  UserCheck,
+  Plus,
+  Trash2,
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { Move2EarnStore } from '@/lib/store';
-import { Challenge, Reward, DashboardSummary } from '@/lib/types';
+import { Challenge, Reward, ActivitySummary } from '@/lib/types';
+import { 
+  fetchMoveItMedia, 
+  getMediaForSession, 
+  DEFAULT_MOVEIT_VIDEO, 
+  DEFAULT_MOVEIT_IMAGES, 
+  MoveItMediaItem, 
+  MoveItMediaRegistry 
+} from '@/lib/moveitMedia';
 
-// Web Audio API Sound Synthesizer (No external assets required)
+// ==============================================================
+// OFFICIAL & AESTHETIC SOCIAL MEDIA APP LOGOS
+// ==============================================================
+function TikTokLogo({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <div className={`rounded-xl bg-black flex items-center justify-center p-1.5 border border-gray-800 shadow-sm shrink-0 ${className}`}>
+      <svg viewBox="0 0 24 24" className="w-full h-full fill-white" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.29 0 .58.04.86.12V9.32a6.34 6.34 0 0 0-.86-.06A6.33 6.33 0 0 0 3 15.59a6.33 6.33 0 0 0 6.33 6.33c3.49 0 6.33-2.84 6.33-6.33V9.22a8.16 8.16 0 0 0 4.93 1.63v-3.45a4.85 4.85 0 0 1-1-.71z" fill="#ffffff" />
+      </svg>
+    </div>
+  );
+}
+
+function InstagramLogo({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <div className={`rounded-xl p-1.5 flex items-center justify-center bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white shadow-sm shrink-0 ${className}`}>
+      <svg viewBox="0 0 24 24" className="w-full h-full stroke-white fill-none stroke-[2.2]" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+      </svg>
+    </div>
+  );
+}
+
+function YouTubeLogo({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <div className={`rounded-xl p-1.5 bg-[#FF0000] flex items-center justify-center text-white shadow-sm shrink-0 ${className}`}>
+      <svg viewBox="0 0 24 24" className="w-full h-full fill-white">
+        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+      </svg>
+    </div>
+  );
+}
+
+function ThreadsLogo({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <div className={`rounded-xl p-1 bg-black border border-gray-700 flex items-center justify-center text-white font-bold text-xs shrink-0 ${className}`}>
+      <span className="font-sans leading-none text-[13px]">@</span>
+    </div>
+  );
+}
+
+function TelegramLogo({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <div className={`rounded-xl p-1.5 bg-[#24A1DE] flex items-center justify-center text-white shadow-sm shrink-0 ${className}`}>
+      <svg viewBox="0 0 24 24" className="w-full h-full fill-white">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.37.74-.56 2.92-1.27 4.86-2.11 5.83-2.52 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06-.01.19-.03.33z"/>
+      </svg>
+    </div>
+  );
+}
+
+function TwitterLogo({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <div className={`rounded-xl p-1.5 bg-black border border-gray-700 flex items-center justify-center text-white shadow-sm shrink-0 ${className}`}>
+      <svg viewBox="0 0 24 24" className="w-full h-full fill-white">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+      </svg>
+    </div>
+  );
+}
+
+function FacebookLogo({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <div className={`rounded-xl p-1.5 bg-[#1877F2] flex items-center justify-center text-white shadow-sm shrink-0 ${className}`}>
+      <svg viewBox="0 0 24 24" className="w-full h-full fill-white">
+        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+      </svg>
+    </div>
+  );
+}
+
+function RedditLogo({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <div className={`rounded-xl p-1.5 bg-[#FF4500] flex items-center justify-center text-white shadow-sm shrink-0 ${className}`}>
+      <svg viewBox="0 0 24 24" className="w-full h-full fill-white">
+        <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.612a1.24 1.24 0 0 1 1.108-.702zM8.51 11.8a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm6.98 0a1.25 1.25 0 1 0 0 2.5 1.25 1.25 0 0 0 0-2.5zm-5.076 4.316a.375.375 0 0 0-.265.64 4.542 4.542 0 0 0 3.69 0 .375.375 0 0 0-.265-.64 3.792 3.792 0 0 1-3.16 0z"/>
+      </svg>
+    </div>
+  );
+}
+
+function renderAppIcon(iconType: string, name: string, className = "w-6 h-6") {
+  switch (iconType) {
+    case 'tiktok': return <TikTokLogo className={className} />;
+    case 'instagram': return <InstagramLogo className={className} />;
+    case 'youtube': return <YouTubeLogo className={className} />;
+    case 'threads': return <ThreadsLogo className={className} />;
+    case 'telegram': return <TelegramLogo className={className} />;
+    case 'twitter': return <TwitterLogo className={className} />;
+    case 'facebook': return <FacebookLogo className={className} />;
+    case 'reddit': return <RedditLogo className={className} />;
+    default:
+      return (
+        <div className={`rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-700 flex items-center justify-center text-white font-extrabold text-xs shadow-sm shrink-0 ${className}`}>
+          {name.charAt(0).toUpperCase()}
+        </div>
+      );
+  }
+}
+
+export interface MonitoredApp {
+  id: string;
+  name: string;
+  category: string;
+  thresholdMinutes: number;
+  iconType: string;
+}
+
+const DEFAULT_MONITORED_APPS: MonitoredApp[] = [
+  { id: 'tiktok', name: 'TikTok', category: 'Short Video & FYP', thresholdMinutes: 45, iconType: 'tiktok' },
+  { id: 'instagram', name: 'Instagram', category: 'Feed & Reels', thresholdMinutes: 30, iconType: 'instagram' },
+  { id: 'youtube', name: 'YouTube', category: 'Video Streaming & Shorts', thresholdMinutes: 60, iconType: 'youtube' },
+];
+
+const PRESET_ADDABLE_APPS: Omit<MonitoredApp, 'thresholdMinutes'>[] = [
+  { id: 'threads', name: 'Threads', category: 'Text & Community', iconType: 'threads' },
+  { id: 'telegram', name: 'Telegram', category: 'Chat & Channels', iconType: 'telegram' },
+  { id: 'twitter', name: 'X / Twitter', category: 'News & Microblog', iconType: 'twitter' },
+  { id: 'facebook', name: 'Facebook', category: 'Social Network', iconType: 'facebook' },
+  { id: 'reddit', name: 'Reddit', category: 'Forums & Discussions', iconType: 'reddit' },
+];
+
+const THRESHOLD_OPTIONS = [
+  { value: 15, label: '15 min (Cepat)' },
+  { value: 30, label: '30 min (Disarankan)' },
+  { value: 45, label: '45 min (Standar)' },
+  { value: 60, label: '60 min (1 Jam)' },
+  { value: 90, label: '90 min (1.5 Jam)' },
+  { value: 120, label: '120 min (2 Jam)' },
+];
+
+// Web Audio API Sound Synthesizer
 const playSound = (type: 'alert' | 'coin' | 'click') => {
   if (typeof window === 'undefined') return;
   try {
@@ -46,7 +205,7 @@ const playSound = (type: 'alert' | 'coin' | 'click') => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.setValueAtTime(520, now);
       osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
       gain.gain.setValueAtTime(0.2, now);
       gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
@@ -58,8 +217,8 @@ const playSound = (type: 'alert' | 'coin' | 'click') => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(987.77, now); // B5
-      osc.frequency.setValueAtTime(1318.51, now + 0.08); // E6
+      osc.frequency.setValueAtTime(987.77, now);
+      osc.frequency.setValueAtTime(1318.51, now + 0.08);
       gain.gain.setValueAtTime(0.25, now);
       gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
       osc.connect(gain);
@@ -71,7 +230,7 @@ const playSound = (type: 'alert' | 'coin' | 'click') => {
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(600, now);
-      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.setValueAtTime(0.08, now);
       gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -79,150 +238,199 @@ const playSound = (type: 'alert' | 'coin' | 'click') => {
       osc.stop(now + 0.05);
     }
   } catch {
-    // Audio context may be restricted before user gesture
+    // ignore
   }
 };
 
-type PhoneAppMode = 'doomscroll' | 'interstitial' | 'dashboard' | 'wallet' | 'rewards' | 'voucher';
-type PhoneModel = 'iphone' | 'android';
+type PhoneTab = 'dashboard' | 'tracking' | 'moveit' | 'rewards' | 'profile';
+type TrackingPeriod = 'daily' | 'weekly';
+type ProfileSubView = 'main' | 'focus_notifications' | 'pro_coach' | 'help_support' | 'auth';
+
+interface ChatMessage {
+  id: string;
+  sender: 'coach' | 'user';
+  text: string;
+  time: string;
+}
 
 export default function MobileDemoPage() {
-  // Device & Navigation state
-  const [phoneModel, setPhoneModel] = useState<PhoneModel>('iphone');
-  const [appMode, setAppMode] = useState<PhoneAppMode>('doomscroll');
-  const [currentTime, setCurrentTime] = useState('17:28');
+  // Authentication & Personalization State
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [userName, setUserName] = useState('Alex');
+  const [userEmail, setUserEmail] = useState('alex@email.com');
+  const [dailyGoalTarget, setDailyGoalTarget] = useState(35);
+  const [fitnessLevel, setFitnessLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Beginner');
+  const [selectedFocusApps, setSelectedFocusApps] = useState<string[]>(['TikTok', 'Instagram', 'YouTube']);
+
+  // Navigation & Phone Tab State (matches the 5 reference screens)
+  const [activeTab, setActiveTab] = useState<PhoneTab>('dashboard');
+  const [trackingPeriod, setTrackingPeriod] = useState<TrackingPeriod>('daily');
+  const [profileSubView, setProfileSubView] = useState<ProfileSubView>('main');
+  const [currentTime, setCurrentTime] = useState('09:41');
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Doomscroll Simulation State
-  const [scrollSeconds, setScrollSeconds] = useState(58);
-  const [scrollLimit, setScrollLimit] = useState(60); // 60s for demo
-  const [isScrollingAuto, setIsScrollingAuto] = useState(true);
-  const [feedIndex, setFeedIndex] = useState(0);
+  // Incoming Notification Simulation (from external TikTok/Instagram)
+  const [showExternalNotification, setShowExternalNotification] = useState(false);
 
-  // Workout Interstitial State
-  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  // Challenge / Interstitial Workout State & MoveIt Media (components/media)
+  const [repCount, setRepCount] = useState(23);
+  const [repTarget] = useState(25);
   const [workoutSecondsLeft, setWorkoutSecondsLeft] = useState(30);
-  const [repCount, setRepCount] = useState(0);
-  const [repTarget] = useState(5);
-  const [useRealWebcam, setUseRealWebcam] = useState(false);
-  const [isWebcamActive, setIsWebcamActive] = useState(false);
-  const [motionDetected, setMotionDetected] = useState(true);
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
+  const [isWebcamActive, setIsWebcamActive] = useState(false);
+  const [moveItSessionNumber, setMoveItSessionNumber] = useState(1); // 1 = first session (video), 2+ = +1 hr later (random image)
+  const [moveItRegistry, setMoveItRegistry] = useState<MoveItMediaRegistry>({
+    video: DEFAULT_MOVEIT_VIDEO,
+    images: DEFAULT_MOVEIT_IMAGES
+  });
+  const [currentMoveItMedia, setCurrentMoveItMedia] = useState<MoveItMediaItem>(DEFAULT_MOVEIT_VIDEO);
+
+  // Focus & Notification Settings state
+  const [screenTimeReminders, setScreenTimeReminders] = useState(true);
+  const [workoutPrompts, setWorkoutPrompts] = useState(true);
+  const [dailyGoalReminders, setDailyGoalReminders] = useState(true);
+  const [quietHours, setQuietHours] = useState(false);
+
+  // Monitored Apps & Dynamic Threshold State
+  const [monitoredApps, setMonitoredApps] = useState<MonitoredApp[]>(DEFAULT_MONITORED_APPS);
+  const [showAddAppModal, setShowAddAppModal] = useState(false);
+  const [customAppName, setCustomAppName] = useState('');
+  const [customAppThreshold, setCustomAppThreshold] = useState(30);
+  const [customAppCategory, setCustomAppCategory] = useState('Sosial & Chat');
+
+  const handleAddPresetApp = (preset: Omit<MonitoredApp, 'thresholdMinutes'>) => {
+    if (monitoredApps.some(a => a.id === preset.id)) return;
+    const newApp: MonitoredApp = {
+      ...preset,
+      thresholdMinutes: 30
+    };
+    setMonitoredApps(prev => [...prev, newApp]);
+    if (soundEnabled) playSound('click');
+  };
+
+  const handleAddCustomApp = () => {
+    if (!customAppName.trim()) return;
+    const newId = customAppName.toLowerCase().replace(/\s+/g, '-');
+    if (monitoredApps.some(a => a.id === newId)) return;
+    const newApp: MonitoredApp = {
+      id: newId,
+      name: customAppName.trim(),
+      category: customAppCategory,
+      thresholdMinutes: customAppThreshold,
+      iconType: 'custom'
+    };
+    setMonitoredApps(prev => [...prev, newApp]);
+    setCustomAppName('');
+    setShowAddAppModal(false);
+    if (soundEnabled) playSound('coin');
+  };
 
   // Rewards & Wallet State
   const [rewardsList, setRewardsList] = useState<Reward[]>([]);
+  const [walletBalance, setWalletBalance] = useState(320);
   const [redeemedVoucher, setRedeemedVoucher] = useState<{ title: string; code: string; price: number } | null>(null);
-  const [walletBalance, setWalletBalance] = useState(75);
-  const [copiedCode, setCopiedCode] = useState(false);
+
+  // Activity summary
+  const [activity, setActivity] = useState<ActivitySummary | null>(null);
+
+  // AI Coach Chatbot State (MoveIt Pro Feature)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: 'msg-1',
+      sender: 'coach',
+      text: `Halo ${userName}! Saya Coach Max AI pribadimu di MoveIt Pro 👑. Hari ini kamu sudah bergerak 24 menit (68% target) dan berhasil menghemat screen time 1h 20m. Ada yang ingin kamu konsultasikan tentang pola olahragamu?`,
+      time: '09:42'
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isCoachTyping, setIsCoachTyping] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
 
-  // Video feed samples for Doomscroll simulation
-  const feedVideos = [
-    {
-      title: 'Trending Dance Challenge 💃',
-      creator: '@dance_squad',
-      desc: 'Viral choreo #fyp #trending #dance',
-      likes: '142.5K',
-      comments: '3,812',
-      shares: '12.4K',
-      src: 'https://assets.mixkit.co/videos/preview/mixkit-girl-dancing-in-front-of-the-camera-40293-large.mp4'
-    },
-    {
-      title: 'Aesthetic Morning Routine ☕',
-      creator: '@lifestyle_vibe',
-      desc: 'Wake up with me at 6 AM #morningroutine #vibes',
-      likes: '89.1K',
-      comments: '1,204',
-      shares: '4,102',
-      src: 'https://assets.mixkit.co/videos/preview/mixkit-hands-holding-a-steaming-cup-of-coffee-43288-large.mp4'
-    },
-    {
-      title: 'Insane Street Food in Jakarta 🍜',
-      creator: '@kuliner_malam',
-      desc: 'Bakso lava pedas nampol banget wajib coba! #kuliner #foodie',
-      likes: '230.9K',
-      comments: '6,450',
-      shares: '35.1K',
-      src: 'https://assets.mixkit.co/videos/preview/mixkit-frying-diced-vegetables-in-a-skillet-43292-large.mp4'
-    }
-  ];
-
-  // Load initial store data
   useEffect(() => {
-    const chs = Move2EarnStore.getChallenges();
-    setSelectedChallenge(chs[0] || null);
+    const act = Move2EarnStore.getActivitySummary();
+    setActivity(act);
     const rws = Move2EarnStore.getRewards();
     setRewardsList(rws);
     const summary = Move2EarnStore.getWalletSummary();
-    setWalletBalance(summary.balance);
+    setWalletBalance(summary.balance || 320);
 
-    // Live Clock
     const updateClock = () => {
       const now = new Date();
       setCurrentTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
     };
     updateClock();
-    const clockInterval = setInterval(updateClock, 10000);
-    return () => clearInterval(clockInterval);
+    const interval = setInterval(updateClock, 10000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Timer for Doomscroll simulation
+  // Countdown timer for MoveIt Challenge
   useEffect(() => {
-    if (appMode !== 'doomscroll' || !isScrollingAuto) return;
-
-    const timer = setInterval(() => {
-      setScrollSeconds((prev) => {
-        const next = prev + 1;
-        if (next >= scrollLimit) {
-          clearInterval(timer);
-          triggerInterstitialIntervention();
-          return scrollLimit;
-        }
-        return next;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [appMode, isScrollingAuto, scrollLimit]);
-
-  // Interstitial countdown timer
-  useEffect(() => {
-    if (appMode !== 'interstitial' || workoutCompleted) return;
+    if (activeTab !== 'moveit' || workoutCompleted) return;
 
     const timer = setInterval(() => {
       setWorkoutSecondsLeft((prev) => {
         if (prev <= 1) {
-          handleCompleteWorkout();
+          handleFinishWorkout();
           return 0;
         }
         return prev - 1;
       });
-      // Simulate motion rep increment every 6s
-      if (!useRealWebcam) {
-        setRepCount((prev) => (prev < repTarget ? prev + 1 : prev));
-      }
-    }, 1500);
+
+      // Incremental reps
+      setRepCount((prev) => (prev < repTarget ? prev + 1 : prev));
+    }, 1200);
 
     return () => clearInterval(timer);
-  }, [appMode, workoutCompleted, useRealWebcam, repTarget]);
+  }, [activeTab, workoutCompleted, repTarget]);
 
-  // Handle Real Webcam Feed
+  // Scroll chat to bottom
   useEffect(() => {
-    if (useRealWebcam && appMode === 'interstitial') {
-      navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'user' } })
-        .then((stream) => {
-          webcamStreamRef.current = stream;
-          setIsWebcamActive(true);
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        })
-        .catch(() => {
-          setUseRealWebcam(false);
-          setIsWebcamActive(false);
-        });
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, isCoachTyping]);
+
+  // Fetch dynamic MoveIt Media from components/media on mount
+  useEffect(() => {
+    fetchMoveItMedia().then((reg) => {
+      setMoveItRegistry(reg);
+      const media = getMediaForSession(moveItSessionNumber, reg);
+      setCurrentMoveItMedia(media);
+    });
+  }, []);
+
+  const handleSelectMoveItSession = (sessionNum: number) => {
+    setMoveItSessionNumber(sessionNum);
+    const media = getMediaForSession(sessionNum, moveItRegistry);
+    setCurrentMoveItMedia(media);
+    setWorkoutCompleted(false);
+    setWorkoutSecondsLeft(30);
+    setRepCount(0);
+  };
+
+  // Direct Live Webcam Feed Management (Tanpa AI Skeleton, fokus kamera fisik)
+  const requestWebcamAccess = () => {
+    if (!navigator.mediaDevices?.getUserMedia) return;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+      .then((stream) => {
+        webcamStreamRef.current = stream;
+        setIsWebcamActive(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      })
+      .catch((err) => {
+        console.warn('Camera access denied or unavailable:', err);
+        setIsWebcamActive(false);
+      });
+  };
+
+  useEffect(() => {
+    if (activeTab === 'moveit') {
+      requestWebcamAccess();
     } else {
       if (webcamStreamRef.current) {
         webcamStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -236,29 +444,35 @@ export default function MobileDemoPage() {
         webcamStreamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [useRealWebcam, appMode]);
+  }, [activeTab]);
 
-  // Trigger Interstitial Lockdown
-  const triggerInterstitialIntervention = () => {
-    if (soundEnabled) playSound('alert');
-    setAppMode('interstitial');
-    setWorkoutSecondsLeft(30);
-    setRepCount(0);
-    setWorkoutCompleted(false);
-  };
-
-  // Complete Workout & Award Coins
-  const handleCompleteWorkout = () => {
-    if (!selectedChallenge) return;
+  // Finish Workout
+  const handleFinishWorkout = () => {
     if (soundEnabled) playSound('coin');
-    Move2EarnStore.completeWorkout(selectedChallenge.id, 30);
+    const ch = Move2EarnStore.getChallenges()[0];
+    Move2EarnStore.completeWorkout(ch.id, 30);
     const summary = Move2EarnStore.getWalletSummary();
     setWalletBalance(summary.balance);
     setWorkoutCompleted(true);
   };
 
-  // Redeem Reward in Phone
-  const handleRedeemReward = (reward: Reward) => {
+  // Simulate External Push Notification
+  const triggerExternalSocialNotification = () => {
+    if (soundEnabled) playSound('alert');
+    setShowExternalNotification(true);
+  };
+
+  // Click External Push Notification -> Opens MoveIt Challenge
+  const handleOpenPromptFromNotification = () => {
+    setShowExternalNotification(false);
+    setActiveTab('moveit');
+    setWorkoutSecondsLeft(30);
+    setRepCount(23);
+    setWorkoutCompleted(false);
+  };
+
+  // Redeem Reward
+  const handleRedeem = (reward: Reward) => {
     if (walletBalance < reward.coin_price) {
       alert('Move Coins tidak mencukupi!');
       return;
@@ -273,51 +487,107 @@ export default function MobileDemoPage() {
       });
       const summary = Move2EarnStore.getWalletSummary();
       setWalletBalance(summary.balance);
-      setAppMode('voucher');
-    } else {
-      alert(res.error || 'Gagal menukarkan voucher');
     }
   };
 
-  // Reset Demo Session
-  const handleResetDemo = () => {
+  // Handle AI Coach Chatbot Query
+  const handleSendMessage = (textToSend?: string) => {
+    const text = textToSend || inputMessage;
+    if (!text.trim()) return;
+
     if (soundEnabled) playSound('click');
-    setScrollSeconds(50);
-    setScrollLimit(60);
-    setAppMode('doomscroll');
+    const userMsg: ChatMessage = {
+      id: `usr-${Date.now()}`,
+      sender: 'user',
+      text: text,
+      time: currentTime
+    };
+
+    setChatMessages((prev) => [...prev, userMsg]);
+    if (!textToSend) setInputMessage('');
+    setIsCoachTyping(true);
+
+    // AI Coach Intelligent Response Simulation grounded on user data
+    setTimeout(() => {
+      let coachReply = '';
+      const lower = text.toLowerCase();
+
+      if (lower.includes('korelasi') || lower.includes('analisis') || lower.includes('performa')) {
+        coachReply = `Berdasarkan data minggu ini: Hari Kamis kemarin kamu hanya scroll sosmed 45 menit dan workout 35 menit penuh (+35% efisiensi kalori!). Namun pada jam 12:00–15:00 hari ini, screen time kamu naik ke 28 menit. Saran saya: luangkan 3 menit Jumping Jacks sebelum makan siang agar metabolisme tetap tinggi!`;
+      } else if (lower.includes('leher') || lower.includes('pegal') || lower.includes('postur')) {
+        coachReply = `Posisi menunduk saat menatap layar HP memberi beban hingga 27 kg pada leher! Saya sarankan lakukan gerakan 'Chin Tucks' dan 'Upper Chest Stretch' selama 3 menit. Sesi ini otomatis memberimu +15 Move Coins di MoveIt!`;
+      } else if (lower.includes('malam') || lower.includes('tidur') || lower.includes('stop scroll')) {
+        coachReply = `Doomscrolling malam hari menurunkan hormon melatonin. Di menu Focus & Notifications, aktifkan 'Quiet Hours' mulai pukul 22:00. Jika kamu tetap tergoda membuka TikTok, MoveIt akan mengunci layar dengan 5 menit deep breathing & core plank!`;
+      } else {
+        coachReply = `Luar biasa, ${userName}! Konsistensi streak 7 harimu sudah menghasilkan 320 Move Coins. Kamu hanya butuh 11 menit latihan lagi untuk menuntaskan 100% Daily Goal hari ini. Ayo selesaikan tantangan squat berikutnya!`;
+      }
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: `coach-${Date.now()}`,
+          sender: 'coach',
+          text: coachReply,
+          time: currentTime
+        }
+      ]);
+      setIsCoachTyping(false);
+      if (soundEnabled) playSound('coin');
+    }, 900);
+  };
+
+  const handleReset = () => {
+    if (soundEnabled) playSound('click');
+    setIsLoggedIn(true);
+    setActiveTab('dashboard');
+    setProfileSubView('main');
+    setShowExternalNotification(false);
     setWorkoutCompleted(false);
-    setRepCount(0);
+    setRepCount(23);
     setWorkoutSecondsLeft(30);
     setRedeemedVoucher(null);
   };
 
+  const handleSignOut = () => {
+    if (soundEnabled) playSound('click');
+    setIsLoggedIn(false);
+    setProfileSubView('auth');
+  };
+
+  const handleSaveOnboarding = () => {
+    if (soundEnabled) playSound('coin');
+    setIsLoggedIn(true);
+    setProfileSubView('main');
+    setActiveTab('dashboard');
+  };
+
   return (
-    <div className="min-h-screen bg-[#070b14] text-gray-100 py-8 px-4 sm:px-6 lg:px-8">
-      {/* Top Breadcrumb & Live Indicator */}
-      <div className="max-w-7xl mx-auto mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-5">
+    <div className="min-h-screen bg-[#06080e] text-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+      {/* Top Header */}
+      <div className="max-w-7xl mx-auto mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800/80 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-green-500/20 text-green-400 border border-green-500/30 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-ping" />
-              Sesi Demo Interaktif
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/30 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-ping" />
+              Sesi Demo Mobile App
             </span>
             <span className="text-gray-500">•</span>
-            <span className="text-xs text-gray-400 font-mono">Smartphone Device Frame Simulator</span>
+            <span className="text-xs text-gray-400 font-mono">MOVEIT App Complete Suite</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-            Tampilan Handphone untuk Sesi Demo & Presentasi Juri
+            Simulator Handphone MOVEIT — Fitur Lengkap & Pro AI Coach
           </h1>
           <p className="text-xs sm:text-sm text-gray-400 mt-1 max-w-2xl">
-            Simulator interaktif smartphone untuk mendemokan alur lengkap <strong>MOVE2EARN</strong> secara visual: dari scrolling sosmed, pemicu batas waktu, split-screen micro-workout, hingga klaim koin dan penukaran voucher.
+            Simulasi lengkap: Alur login/personalisasi, Dashboard metrik, Activity Tracking harian, Split-Screen Challenge, Hadiah, Pengaturan batas sosmed, <strong>Help & Support</strong>, serta fitur <strong>Upgrade MoveIt Pro (Deep Analytics & AI Coach Chatbot)</strong>!
           </p>
         </div>
 
-        {/* Global Demo Controls */}
+        {/* Global Controls */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
             className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-              soundEnabled ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-gray-800 border-gray-700 text-gray-400'
+              soundEnabled ? 'bg-[#ccff00]/10 border-[#ccff00]/30 text-[#ccff00]' : 'bg-gray-800 border-gray-700 text-gray-400'
             }`}
             title="Toggle Sound FX"
           >
@@ -326,7 +596,7 @@ export default function MobileDemoPage() {
           </button>
 
           <button
-            onClick={handleResetDemo}
+            onClick={handleReset}
             className="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-xs font-bold text-white flex items-center gap-2 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
@@ -335,7 +605,7 @@ export default function MobileDemoPage() {
 
           <Link
             href="/dashboard"
-            className="px-4 py-2 rounded-xl bg-green-500 hover:bg-green-400 text-black text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-green-500/20 transition-all"
+            className="px-4 py-2 rounded-xl bg-[#ccff00] hover:bg-[#b8e600] text-black text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#ccff00]/20 transition-all"
           >
             <span>Buka Web Portal</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -343,424 +613,1328 @@ export default function MobileDemoPage() {
         </div>
       </div>
 
-      {/* MAIN TWO-COLUMN LAYOUT: PHONE ON LEFT / PRESENTER COCKPIT ON RIGHT */}
+      {/* TWO-COLUMN LAYOUT: PHONE ON LEFT / PRESENTER COCKPIT ON RIGHT */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* ==================================================================== */}
-        {/* COLUMN 1: SMARTPHONE DEVICE FRAME (5 COLS ON DESKTOP) */}
+        {/* COLUMN 1: SMARTPHONE DEVICE FRAME (MATCHING SCREENSHOT DESIGN) */}
         {/* ==================================================================== */}
         <div className="lg:col-span-6 xl:col-span-5 flex justify-center">
           
-          {/* THE SMARTPHONE CHASSIS */}
-          <div className="relative w-[340px] sm:w-[380px] h-[740px] bg-black rounded-[52px] p-3 shadow-[0_0_60px_-15px_rgba(34,197,94,0.3)] border-[8px] border-[#222938] transition-all duration-300">
+          <div className="relative w-[345px] sm:w-[380px] h-[750px] bg-black rounded-[52px] p-3 shadow-[0_0_60px_-15px_rgba(204,255,0,0.25)] border-[8px] border-[#1a1f29] transition-all duration-300">
             
             {/* Outer Titanium Trim Accent */}
             <div className="absolute inset-0 rounded-[44px] pointer-events-none border border-white/10" />
 
-            {/* SIDE BUTTONS */}
+            {/* Hardware Side Buttons */}
             <div className="absolute -left-[11px] top-28 w-[3px] h-10 bg-gray-700 rounded-l" />
             <div className="absolute -left-[11px] top-42 w-[3px] h-12 bg-gray-700 rounded-l" />
             <div className="absolute -right-[11px] top-36 w-[3px] h-16 bg-gray-700 rounded-r" />
 
             {/* SCREEN VIEWPORT */}
-            <div className="relative w-full h-full bg-[#0a0e17] rounded-[42px] overflow-hidden flex flex-col border border-gray-900 select-none">
+            <div className="relative w-full h-full bg-[#0e1117] rounded-[42px] overflow-hidden flex flex-col border border-gray-900 select-none text-white">
               
               {/* STATUS BAR */}
-              <div className="absolute top-0 inset-x-0 h-10 z-30 px-6 flex items-center justify-between text-white text-xs font-medium">
-                <span className="font-semibold tracking-tight">{currentTime}</span>
+              <div className="absolute top-0 inset-x-0 h-10 z-30 px-6 flex items-center justify-between text-white text-xs font-semibold">
+                <span>{currentTime}</span>
                 
-                {/* DYNAMIC ISLAND OR PUNCH HOLE */}
-                {phoneModel === 'iphone' ? (
-                  <div className="w-24 h-5 bg-black rounded-full flex items-center justify-center gap-2 border border-gray-900 px-2 shadow-inner">
-                    <div className="w-2 h-2 rounded-full bg-[#1a2333]" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 animate-pulse" />
-                  </div>
-                ) : (
-                  <div className="w-3.5 h-3.5 bg-black rounded-full border border-gray-800" />
-                )}
+                {/* Dynamic Island */}
+                <div className="w-24 h-5 bg-black rounded-full flex items-center justify-center gap-2 border border-gray-900 px-2 shadow-inner">
+                  <div className="w-2 h-2 rounded-full bg-[#1a2333]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#ccff00]/90 animate-pulse" />
+                </div>
 
                 <div className="flex items-center gap-1.5 text-[11px]">
                   <Wifi className="w-3.5 h-3.5" />
-                  <span className="font-mono text-[10px]">5G</span>
                   <div className="flex items-center gap-0.5">
-                    <span className="text-[10px] font-mono">98%</span>
-                    <BatteryCharging className="w-3.5 h-3.5 text-green-400" />
+                    <BatteryCharging className="w-3.5 h-3.5 text-[#ccff00]" />
                   </div>
                 </div>
               </div>
 
-              {/* ============================================================== */}
-              {/* SMARTPHONE APP CONTENT BASED ON ACTIVE MODE */}
-              {/* ============================================================== */}
-              <div className="flex-1 pt-10 pb-14 overflow-y-auto overflow-x-hidden relative flex flex-col">
-                
-                {/* MODE 1: DOOMSCROLL SOCIAL MEDIA FEED */}
-                {appMode === 'doomscroll' && (
-                  <div className="relative flex-1 bg-black flex flex-col justify-between overflow-hidden">
-                    {/* Simulated Fullscreen Video Background */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/90 z-10 pointer-events-none" />
-                    
-                    <video
-                      key={feedIndex}
-                      src={feedVideos[feedIndex].src}
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-
-                    {/* TOP FLOATING SCREENTIME HUD (MOVE2EARN OVERLAY) */}
-                    <div className="relative z-20 mx-3 mt-2 p-2.5 rounded-2xl bg-black/75 backdrop-blur-md border border-green-500/40 text-xs shadow-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-green-400 font-bold">
-                          <Flame className="w-4 h-4 fill-green-400" />
-                          <span>MOVE2EARN ACTIVE</span>
-                        </div>
-                        <span className="font-mono text-[11px] text-amber-300 font-bold">
-                          {scrollSeconds}s / {scrollLimit}s Demo
-                        </span>
+              {/* FLOATING EXTERNAL PUSH NOTIFICATION (SIMULATES SOCIAL APP INTERRUPTION) */}
+              {showExternalNotification && (
+                <div 
+                  onClick={handleOpenPromptFromNotification}
+                  className="absolute top-11 inset-x-3 z-40 p-3 rounded-2xl bg-black/95 backdrop-blur-md border border-[#ccff00]/70 shadow-2xl text-xs cursor-pointer animate-in fade-in slide-in-from-top-4 duration-300"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-pink-600 flex items-center justify-center flex-shrink-0 font-bold text-white text-[10px]">
+                      TikTok
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center text-[10px] text-gray-400">
+                        <span className="font-bold text-white">Batas Screen Time Tercapai!</span>
+                        <span>Sekarang</span>
                       </div>
-                      
-                      {/* Progress Bar towards limit */}
-                      <div className="w-full bg-gray-800/80 rounded-full h-2 mt-1.5 overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-green-400 to-amber-400 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(100, (scrollSeconds / scrollLimit) * 100)}%` }}
+                      <p className="text-[11px] text-gray-200 mt-0.5 leading-snug">
+                        Kamu sudah scroll 60 menit. Ketuk untuk membuka <strong className="text-[#ccff00]">MOVEIT Challenge</strong> (3 menit Jumping Jacks).
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-1.5 border-t border-white/10 flex justify-end">
+                    <span className="text-[10px] font-bold text-[#ccff00] flex items-center gap-1">
+                      Mulai Workout Sekarang <ArrowRight className="w-3 h-3" />
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* ============================================================== */}
+              {/* SMARTPHONE APP CONTENT (ROUTED BY TAB & SUBVIEW) */}
+              {/* ============================================================== */}
+              <div className="flex-1 pt-11 pb-16 overflow-y-auto overflow-x-hidden relative flex flex-col bg-[#0b0e14]">
+                
+                {/* ------------------------------------------------------------ */}
+                {/* ONBOARDING & LOGIN SCREEN (WHEN NOT LOGGED IN) */}
+                {/* ------------------------------------------------------------ */}
+                {(!isLoggedIn || profileSubView === 'auth') ? (
+                  <div className="p-4 space-y-4 my-auto">
+                    <div className="text-center space-y-1">
+                      <div className="w-12 h-12 rounded-2xl bg-[#ccff00] text-black flex items-center justify-center mx-auto mb-2 shadow-lg shadow-[#ccff00]/30">
+                        <Zap className="w-7 h-7 fill-black" />
+                      </div>
+                      <h2 className="text-xl font-black text-white tracking-wider">
+                        MOVE<span className="text-[#ccff00]">IT</span>
+                      </h2>
+                      <p className="text-xs text-gray-400 font-medium">Turn screen time into movement.</p>
+                      <span className="text-[10px] text-gray-500 block">Personalisasi Akun & Target Kebugaran</span>
+                    </div>
+
+                    {/* Personalization Inputs */}
+                    <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800 space-y-3 text-xs">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Nama Kamu</label>
+                        <input
+                          type="text"
+                          value={userName}
+                          onChange={(e) => setUserName(e.target.value)}
+                          className="w-full bg-[#181e2b] border border-gray-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-[#ccff00]"
+                          placeholder="Masukkan nama..."
                         />
                       </div>
 
-                      <div className="flex items-center justify-between text-[10px] text-gray-300 mt-1">
-                        <span>TikTok • UsageStats</span>
-                        <span className="text-amber-400 font-semibold">
-                          {scrollLimit - scrollSeconds > 0 ? `${scrollLimit - scrollSeconds}s tersisa` : 'Ambang Tercapai!'}
-                        </span>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Target Workout Harian</label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[15, 30, 45].map((target) => (
+                            <button
+                              key={target}
+                              type="button"
+                              onClick={() => setDailyGoalTarget(target)}
+                              className={`py-1.5 rounded-lg font-bold text-[11px] transition-colors ${
+                                dailyGoalTarget === target
+                                  ? 'bg-[#ccff00] text-black'
+                                  : 'bg-[#181e2b] text-gray-300 border border-gray-700'
+                              }`}
+                            >
+                              {target} min
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Tingkat Kesulitan</label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {(['Beginner', 'Intermediate', 'Advanced'] as const).map((lvl) => (
+                            <button
+                              key={lvl}
+                              type="button"
+                              onClick={() => setFitnessLevel(lvl)}
+                              className={`py-1.5 rounded-lg font-bold text-[10px] transition-colors ${
+                                fitnessLevel === lvl
+                                  ? 'bg-[#ccff00] text-black'
+                                  : 'bg-[#181e2b] text-gray-300 border border-gray-700'
+                              }`}
+                            >
+                              {lvl}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Aplikasi Sosmed Dipantau</label>
+                        <div className="flex gap-2">
+                          {['TikTok', 'Instagram', 'YouTube'].map((app) => {
+                            const isSel = selectedFocusApps.includes(app);
+                            return (
+                              <button
+                                key={app}
+                                type="button"
+                                onClick={() => {
+                                  if (isSel) setSelectedFocusApps(selectedFocusApps.filter((a) => a !== app));
+                                  else setSelectedFocusApps([...selectedFocusApps, app]);
+                                }}
+                                className={`flex-1 py-1 px-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                                  isSel
+                                    ? 'bg-[#ccff00]/15 text-[#ccff00] border-[#ccff00]/50'
+                                    : 'bg-[#181e2b] text-gray-400 border-gray-700'
+                                }`}
+                              >
+                                {isSel ? `✓ ${app}` : app}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
 
-                    {/* RIGHT SIDE ENGAGEMENT ICONS */}
-                    <div className="absolute right-3 bottom-24 z-20 flex flex-col items-center gap-4 text-white text-xs">
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="w-10 h-10 rounded-full bg-black/60 backdrop-blur flex items-center justify-center text-red-500 border border-white/10 active:scale-90 transition-transform">
-                          <Heart className="w-5 h-5 fill-red-500" />
-                        </div>
-                        <span className="text-[10px] font-semibold">{feedVideos[feedIndex].likes}</span>
-                      </div>
+                    {/* Social Logins & CTA */}
+                    <div className="space-y-2">
+                      <button
+                        onClick={handleSaveOnboarding}
+                        className="w-full py-3 rounded-2xl bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-xs shadow-lg shadow-[#ccff00]/25 transition-all"
+                      >
+                        Simpan & Masuk ke Dashboard
+                      </button>
 
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="w-10 h-10 rounded-full bg-black/60 backdrop-blur flex items-center justify-center border border-white/10">
-                          <MessageCircle className="w-5 h-5" />
-                        </div>
-                        <span className="text-[10px] font-semibold">{feedVideos[feedIndex].comments}</span>
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <button
+                          onClick={handleSaveOnboarding}
+                          className="py-2 px-2 bg-[#121620] hover:bg-gray-800 border border-gray-800 rounded-xl text-gray-300 font-semibold"
+                        >
+                          Google Login
+                        </button>
+                        <button
+                          onClick={handleSaveOnboarding}
+                          className="py-2 px-2 bg-[#121620] hover:bg-gray-800 border border-gray-800 rounded-xl text-gray-300 font-semibold"
+                        >
+                          Apple ID
+                        </button>
                       </div>
+                    </div>
+                  </div>
+                ) : activeTab === 'dashboard' ? (
+                  /* ------------------------------------------------------------ */
+                  /* SCREEN 1: DASHBOARD (SCREENSHOT 1) */
+                  /* ------------------------------------------------------------ */
+                  <div className="p-4 space-y-4">
+                    {/* Top App Header */}
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-base tracking-wider text-white">
+                        MOVE<span className="text-[#ccff00]">IT</span>
+                      </span>
+                      <button 
+                        onClick={() => setActiveTab('profile')}
+                        className="p-1.5 rounded-full bg-gray-900 border border-gray-800 text-gray-300 hover:text-white"
+                      >
+                        <Bell className="w-4 h-4" />
+                      </button>
+                    </div>
 
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="w-10 h-10 rounded-full bg-black/60 backdrop-blur flex items-center justify-center border border-white/10">
-                          <Share2 className="w-5 h-5" />
-                        </div>
-                        <span className="text-[10px] font-semibold">{feedVideos[feedIndex].shares}</span>
+                    {/* Greeting & Day Streak */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-xl font-extrabold text-white">Hi, {userName}!</h2>
+                        <p className="text-xs text-gray-400">Keep moving, stronger you!</p>
+                      </div>
+                      <div className="px-2.5 py-1 rounded-full bg-black/60 border border-gray-800 flex items-center gap-1.5 text-xs font-bold text-[#ccff00]">
+                        <Flame className="w-3.5 h-3.5 fill-[#ccff00]" />
+                        <span>7 Day Streak</span>
                       </div>
                     </div>
 
-                    {/* BOTTOM CREATOR INFO & CAPTION */}
-                    <div className="relative z-20 p-4 text-white space-y-1">
-                      <div className="font-bold text-sm flex items-center gap-1.5">
-                        <span>{feedVideos[feedIndex].creator}</span>
-                        <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.2 rounded font-semibold">Follow</span>
-                      </div>
-                      <p className="text-xs text-gray-200 line-clamp-2">{feedVideos[feedIndex].desc}</p>
+                    {/* Hero Circular Progress & Side Stats Grid */}
+                    <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800/80 grid grid-cols-12 gap-3 items-center">
                       
-                      {/* Video Switcher Dots */}
-                      <div className="flex items-center gap-1.5 pt-2">
-                        {feedVideos.map((_, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setFeedIndex(idx)}
-                            className={`h-1.5 rounded-full transition-all ${
-                              feedIndex === idx ? 'w-6 bg-white' : 'w-2 bg-white/40'
-                            }`}
-                          />
+                      {/* Left Circular Ring (68% Daily Goal) */}
+                      <div className="col-span-6 flex flex-col items-center justify-center relative">
+                        <div className="relative w-28 h-28 flex items-center justify-center">
+                          <svg className="w-28 h-28 transform -rotate-90">
+                            <circle
+                              cx="56"
+                              cy="56"
+                              r="46"
+                              className="stroke-gray-800"
+                              strokeWidth="8"
+                              fill="transparent"
+                            />
+                            <circle
+                              cx="56"
+                              cy="56"
+                              r="46"
+                              className="stroke-[#ccff00] transition-all duration-1000 ease-out"
+                              strokeWidth="8"
+                              strokeDasharray={289}
+                              strokeDashoffset={289 * (1 - 0.68)}
+                              strokeLinecap="round"
+                              fill="transparent"
+                            />
+                          </svg>
+                          <div className="absolute text-center">
+                            <span className="text-lg font-black text-white block leading-tight">68%</span>
+                            <span className="text-[9px] text-gray-400 uppercase tracking-wider block">Daily Goal</span>
+                            <span className="text-[10px] text-[#ccff00] font-mono font-bold block mt-0.5">24 / {dailyGoalTarget} min</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right 2 Stacked Cards */}
+                      <div className="col-span-6 space-y-2.5">
+                        <div className="p-2.5 rounded-2xl bg-[#181e2b] border border-gray-800 text-xs">
+                          <div className="flex items-center gap-1.5 text-gray-400 text-[10px]">
+                            <Clock className="w-3 h-3 text-[#ccff00]" />
+                            <span>Screen Time Saved</span>
+                          </div>
+                          <div className="text-sm font-bold text-white font-mono mt-0.5">1h 20m</div>
+                        </div>
+
+                        <div 
+                          onClick={() => setActiveTab('rewards')}
+                          className="p-2.5 rounded-2xl bg-[#181e2b] border border-gray-800 text-xs cursor-pointer hover:border-[#ccff00]/40 transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 text-gray-400 text-[10px]">
+                              <Coins className="w-3 h-3 text-amber-400" />
+                              <span>Move Coins</span>
+                            </div>
+                            <ChevronRight className="w-3 h-3 text-gray-400" />
+                          </div>
+                          <div className="text-sm font-bold text-[#ccff00] font-mono mt-0.5">{walletBalance} &gt;</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Row of 3 Stat Pills */}
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="p-3 rounded-2xl bg-[#121620] border border-gray-800">
+                        <div className="flex items-center justify-center gap-1 text-orange-400 mb-0.5">
+                          <Flame className="w-3.5 h-3.5 fill-orange-400" />
+                        </div>
+                        <div className="font-bold text-white text-sm font-mono">245</div>
+                        <div className="text-[9px] text-gray-400 uppercase">Calories</div>
+                      </div>
+
+                      <div className="p-3 rounded-2xl bg-[#121620] border border-gray-800">
+                        <div className="flex items-center justify-center gap-1 text-[#ccff00] mb-0.5">
+                          <Footprints className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="font-bold text-white text-sm font-mono">3,200</div>
+                        <div className="text-[9px] text-gray-400 uppercase">Steps</div>
+                      </div>
+
+                      <div className="p-3 rounded-2xl bg-[#121620] border border-gray-800">
+                        <div className="flex items-center justify-center gap-1 text-teal-400 mb-0.5">
+                          <Dumbbell className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="font-bold text-white text-sm font-mono">4</div>
+                        <div className="text-[9px] text-gray-400 uppercase">Workouts</div>
+                      </div>
+                    </div>
+
+                    {/* "This Week" Bar Chart Section */}
+                    <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-white">This Week</h3>
+                        <button 
+                          onClick={() => setActiveTab('tracking')}
+                          className="text-[10px] text-gray-400 hover:text-white flex items-center gap-0.5"
+                        >
+                          See Details <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {/* Bar chart */}
+                      <div className="flex items-end justify-between h-24 pt-3 px-1 border-b border-gray-800/80 pb-2">
+                        {[
+                          { day: 'Mon', h: 30 },
+                          { day: 'Tue', h: 48 },
+                          { day: 'Wed', h: 38 },
+                          { day: 'Thu', h: 80, active: true, label: '35 min' },
+                          { day: 'Fri', h: 42 },
+                          { day: 'Sat', h: 56 },
+                          { day: 'Sun', h: 25 },
+                        ].map((b) => (
+                          <div key={b.day} className="flex flex-col items-center gap-1.5 flex-1 relative">
+                            {b.active && (
+                              <div className="absolute -top-6 bg-black text-[#ccff00] text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-[#ccff00]/40 whitespace-nowrap">
+                                {b.label}
+                              </div>
+                            )}
+                            <div 
+                              className={`w-3.5 rounded-full transition-all ${
+                                b.active ? 'bg-[#ccff00]' : 'bg-[#1e2536]'
+                              }`}
+                              style={{ height: `${b.h}%` }}
+                            />
+                            <span className={`text-[10px] font-mono ${b.active ? 'text-[#ccff00] font-bold' : 'text-gray-400'}`}>
+                              {b.day}
+                            </span>
+                          </div>
                         ))}
                       </div>
                     </div>
-                  </div>
-                )}
 
-                {/* MODE 2: SPLIT-SCREEN WORKOUT INTERSTITIAL (HERO FEATURE) */}
-                {appMode === 'interstitial' && selectedChallenge && (
-                  <div className="flex-1 bg-black flex flex-col">
-                    
-                    {/* Interstitial Header Alert */}
-                    <div className="bg-red-950/80 border-b border-red-500/40 px-3 py-1.5 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1 text-red-400 font-bold text-[11px]">
-                        <BellRing className="w-3.5 h-3.5 animate-bounce" />
-                        <span>INTERSTITIAL TERKUNCI</span>
-                      </div>
-                      <span className="bg-red-500 text-white font-mono text-[10px] px-2 py-0.5 rounded-full font-bold">
-                        Batas 60 Menit Tercapai
-                      </span>
-                    </div>
-
-                    {/* ========================================================== */}
-                    {/* TOP 50%: VIDEO TUTORIAL GUIDE */}
-                    {/* ========================================================== */}
-                    <div className="h-[210px] bg-slate-950 border-b-2 border-green-500 relative flex flex-col justify-between p-2.5 overflow-hidden">
-                      <div className="absolute inset-0 bg-black/40 z-10 pointer-events-none" />
-                      
-                      <video
-                        src={selectedChallenge.media_url}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-
-                      <div className="relative z-20 flex items-center justify-between">
-                        <span className="bg-black/70 backdrop-blur text-blue-400 text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 border border-blue-500/30">
-                          <Video className="w-3 h-3" /> BAGIAN 1: PANDUAN
-                        </span>
-                        <span className="bg-black/70 backdrop-blur text-amber-300 font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-amber-500/30">
-                          +{selectedChallenge.coin_reward} Coins
-                        </span>
+                    {/* "Recent Workout" Section */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-white">Recent Workout</h3>
+                        <button 
+                          onClick={() => setActiveTab('tracking')}
+                          className="text-[10px] text-gray-400 hover:text-white flex items-center gap-0.5"
+                        >
+                          See All <ChevronRight className="w-3 h-3" />
+                        </button>
                       </div>
 
-                      <div className="relative z-20 bg-black/75 backdrop-blur p-2 rounded-xl border border-white/10 text-xs">
-                        <div className="flex justify-between items-center">
-                          <h4 className="font-bold text-white text-xs">{selectedChallenge.title}</h4>
-                          <span className="text-green-400 font-mono font-bold">{workoutSecondsLeft}s</span>
+                      <div className="p-3 rounded-2xl bg-[#121620] border border-gray-800 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-10 h-10 rounded-xl bg-[#ccff00]/15 text-[#ccff00] flex items-center justify-center">
+                            <Dumbbell className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold text-white">Full Body Move</h4>
+                            <p className="text-[10px] text-gray-400">10 min • 120 kcal</p>
+                          </div>
                         </div>
-                        <p className="text-[10px] text-gray-300 mt-0.5 line-clamp-1">{selectedChallenge.instructions}</p>
+
+                        <div className="text-right">
+                          <span className="text-xs font-bold text-[#ccff00] font-mono">+50 🪙</span>
+                          <span className="text-[10px] text-gray-400 block">Today, 10:24</span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* ========================================================== */}
-                    {/* BOTTOM 50%: CAMERA REAL/SIMULATED VALIDATION */}
-                    {/* ========================================================== */}
-                    <div className="flex-1 bg-gradient-to-b from-zinc-950 to-black p-2.5 flex flex-col justify-between relative overflow-hidden">
-                      
-                      <div className="flex items-center justify-between z-20">
-                        <span className="bg-black/70 backdrop-blur text-emerald-400 text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 border border-emerald-500/30">
-                          <Camera className="w-3 h-3" /> BAGIAN 2: KAMERA VALIDASI
-                        </span>
-                        <span className="bg-green-500/20 text-green-300 border border-green-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Motion OK
-                        </span>
+                  </div>
+                ) : activeTab === 'tracking' ? (
+                  /* ------------------------------------------------------------ */
+                  /* SCREEN 2: ACTIVITY TRACKING (SCREENSHOT 2) */
+                  /* ------------------------------------------------------------ */
+                  <div className="p-4 space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b border-gray-800/80 pb-3">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setActiveTab('dashboard')} className="text-gray-400 hover:text-white">
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <h2 className="text-sm font-bold text-white">Activity Tracking</h2>
+                      </div>
+                    </div>
+
+                    {/* Daily / Weekly Pill Switch */}
+                    <div className="p-1 rounded-2xl bg-[#121620] border border-gray-800 grid grid-cols-2 text-xs">
+                      <button
+                        onClick={() => setTrackingPeriod('daily')}
+                        className={`py-1.5 rounded-xl font-bold transition-all ${
+                          trackingPeriod === 'daily'
+                            ? 'bg-[#ccff00] text-black shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Daily
+                      </button>
+                      <button
+                        onClick={() => setTrackingPeriod('weekly')}
+                        className={`py-1.5 rounded-xl font-bold transition-all ${
+                          trackingPeriod === 'weekly'
+                            ? 'bg-[#ccff00] text-black shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Weekly
+                      </button>
+                    </div>
+
+                    {/* Date Navigator */}
+                    <div className="flex items-center justify-between text-xs text-gray-300 px-2 font-mono">
+                      <button className="text-gray-400 hover:text-white">&lt;</button>
+                      <span className="font-semibold text-white">Tue, 24 Jun 2025</span>
+                      <button className="text-gray-400 hover:text-white">&gt;</button>
+                    </div>
+
+                    {/* Total Screen Time Card */}
+                    <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-black/60 border border-gray-800 flex items-center justify-center text-gray-300">
+                          <Smartphone className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-gray-400 block">Total Screen Time (Social Apps)</span>
+                          <span className="text-lg font-bold text-white font-mono">1h 20m</span>
+                        </div>
                       </div>
 
-                      {/* CAMERA FEED / SKELETON POSE VIEWER */}
-                      <div className="relative flex-1 my-1.5 rounded-xl border border-dashed border-green-500/60 bg-green-950/15 overflow-hidden flex items-center justify-center">
-                        {useRealWebcam ? (
-                          <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-full object-cover -scale-x-100"
-                          />
-                        ) : (
-                          // Realistic Simulated Skeleton Wireframe
-                          <div className="relative w-full h-full flex flex-col items-center justify-center">
-                            {/* Animated Pose Landmark Skeleton */}
-                            <div className="relative w-28 h-36 flex flex-col items-center justify-center">
-                              {/* Head Node */}
-                              <div className="w-7 h-7 rounded-full border-2 border-green-400 bg-green-400/20 flex items-center justify-center">
-                                <div className="w-2 h-2 rounded-full bg-green-300 animate-ping" />
+                      <div className="px-2 py-1 rounded-full bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/30 text-[10px] font-bold">
+                        ↓ 42% vs yesterday
+                      </div>
+                    </div>
+
+                    {/* Hourly Screen Time Bar Chart */}
+                    <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800 space-y-3">
+                      <span className="text-xs font-bold text-white block">Screen Time (Social Apps)</span>
+
+                      <div className="flex items-end justify-between h-28 pt-4 px-2 border-b border-gray-800/80 pb-2">
+                        {[
+                          { h: '6', val: 12 },
+                          { h: '9', val: 24 },
+                          { h: '12', val: 40 },
+                          { h: '15', val: 68, active: true, label: '28 min' },
+                          { h: '18', val: 32 },
+                          { h: '21', val: 16 },
+                        ].map((item) => (
+                          <div key={item.h} className="flex flex-col items-center gap-1.5 flex-1 relative">
+                            {item.active && (
+                              <div className="absolute -top-6 bg-black text-[#ccff00] text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-[#ccff00]/40">
+                                {item.label}
                               </div>
-                              {/* Spine & Arms */}
-                              <div className="w-16 h-10 border-t-2 border-b-2 border-green-400/80 my-1 relative">
-                                <div className="absolute left-0 top-0 w-2 h-2 rounded-full bg-green-400" />
-                                <div className="absolute right-0 top-0 w-2 h-2 rounded-full bg-green-400" />
-                                <div className="absolute left-1/2 -translate-x-1/2 h-full w-0.5 bg-green-400" />
+                            )}
+                            <div 
+                              className={`w-3.5 rounded-full ${item.active ? 'bg-[#ccff00]' : 'bg-[#1e2536]'}`}
+                              style={{ height: `${item.val}%` }}
+                            />
+                            <span className="text-[10px] text-gray-400 font-mono">{item.h}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Workout Sessions List */}
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-bold text-white">Workout Sessions</h3>
+
+                      <div className="space-y-2">
+                        {[
+                          { title: 'Jumping Jacks', min: '3 min • 40 kcal', coin: '+15', time: '14:20' },
+                          { title: 'Squat Challenge', min: '5 min • 60 kcal', coin: '+20', time: '10:05' },
+                          { title: 'Stretching', min: '5 min • 35 kcal', coin: '+15', time: '08:12' }
+                        ].map((sess, idx) => (
+                          <div key={idx} className="p-3 rounded-2xl bg-[#121620] border border-gray-800 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-[#ccff00]/15 text-[#ccff00] flex items-center justify-center">
+                                <Dumbbell className="w-4 h-4" />
                               </div>
-                              {/* Legs & Knees */}
-                              <div className="w-12 h-14 border-t-2 border-l-2 border-r-2 border-green-400 relative">
-                                <div className="absolute left-0 bottom-0 w-2 h-2 rounded-full bg-green-400" />
-                                <div className="absolute right-0 bottom-0 w-2 h-2 rounded-full bg-green-400" />
+                              <div>
+                                <h4 className="text-xs font-bold text-white">{sess.title}</h4>
+                                <p className="text-[10px] text-gray-400">{sess.min}</p>
                               </div>
                             </div>
-                            <span className="text-[10px] text-green-300 font-mono mt-1 bg-black/60 px-2 py-0.5 rounded">
-                              AI Skeleton Rep: {repCount}/{repTarget}
-                            </span>
+
+                            <div className="flex items-center gap-2 text-right">
+                              <div>
+                                <span className="text-xs font-bold text-[#ccff00] font-mono">{sess.coin} 🪙</span>
+                                <span className="text-[10px] text-gray-500 block">{sess.time}</span>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+                ) : activeTab === 'moveit' ? (
+                  /* ------------------------------------------------------------ */
+                  /* SCREEN 3: MOVEIT CHALLENGE / SPLIT INTERSTITIAL (SCREENSHOT 3) */
+                  /* ------------------------------------------------------------ */
+                  <div className="flex-1 flex flex-col justify-between bg-black">
+                    
+                    {/* Header */}
+                    <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-800/80 bg-[#0e1117]">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setActiveTab('dashboard')} className="text-gray-400 hover:text-white">
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <span className="text-xs font-bold text-white uppercase tracking-wider">MOVEIT Challenge</span>
+                      </div>
+                      <Volume2 className="w-4 h-4 text-gray-400" />
+                    </div>
+
+                    {/* TOP HALF: FOLLOW THE MOVE (MEDIA ARAHAN DARI components/media) */}
+                    <div className="relative h-[220px] bg-[#121620] border-b-2 border-[#ccff00] p-3 flex flex-col justify-between overflow-hidden">
+                      <div className="flex items-center justify-between z-10">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-300 bg-black/60 px-2 py-0.5 rounded">
+                            FOLLOW THE MOVE
+                          </span>
+                          <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded bg-[#ccff00]/20 text-[#ccff00] border border-[#ccff00]/40">
+                            {moveItSessionNumber === 1 
+                              ? 'Sesi 1 • Video' 
+                              : `Sesi ${moveItSessionNumber} (+1 Jam) • Random Foto`}
+                          </span>
+                        </div>
+                        <div className="px-2 py-0.5 rounded bg-black/70 text-[#ccff00] font-mono text-[10px] font-bold flex items-center gap-1 border border-[#ccff00]/30">
+                          <Clock className="w-3 h-3" />
+                          <span>00:{workoutSecondsLeft < 10 ? `0${workoutSecondsLeft}` : workoutSecondsLeft}</span>
+                        </div>
+                      </div>
+
+                      {/* Display Video or Image from components/media */}
+                      <div className="relative flex-1 flex items-center justify-center my-1 rounded-xl overflow-hidden bg-black/50">
+                        {currentMoveItMedia.type === 'video' ? (
+                          <video
+                            src={currentMoveItMedia.url}
+                            onError={(e) => {
+                              if (e.currentTarget.src !== currentMoveItMedia.fallbackUrl) {
+                                e.currentTarget.src = currentMoveItMedia.fallbackUrl;
+                              }
+                            }}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        ) : (
+                          <img
+                            src={currentMoveItMedia.url}
+                            onError={(e) => {
+                              if (e.currentTarget.src !== currentMoveItMedia.fallbackUrl) {
+                                e.currentTarget.src = currentMoveItMedia.fallbackUrl;
+                              }
+                            }}
+                            alt={currentMoveItMedia.title}
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                      </div>
+
+                      {/* Movement Name & Reps Target */}
+                      <div className="flex items-center justify-between z-10">
+                        <div className="pr-2">
+                          <span className="text-xs font-bold text-white block truncate">{currentMoveItMedia.title}</span>
+                          <span className="text-[10px] text-gray-300 line-clamp-1">{currentMoveItMedia.instructions}</span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-[#ccff00] text-black px-2 py-0.5 rounded-full font-mono shrink-0">
+                          {repTarget} reps
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* BOTTOM HALF: LIVE CAMERA (FOKUS KAMERA, TANPA AI SKELETON) */}
+                    <div className="relative flex-1 bg-[#090c10] p-3 flex flex-col justify-between overflow-hidden">
+                      
+                      {/* Reps Badge & Verified Check */}
+                      <div className="flex items-center justify-between z-10">
+                        <div className="px-2.5 py-1 rounded-xl bg-black/80 border border-gray-700 text-white font-mono text-base font-extrabold">
+                          <span className="text-[#ccff00]">{repCount}</span>/{repTarget} <span className="text-xs font-normal text-gray-400">Reps</span>
+                        </div>
+
+                        <div className="w-8 h-8 rounded-full bg-[#ccff00] text-black flex items-center justify-center font-bold shadow-lg shadow-[#ccff00]/40">
+                          <Check className="w-5 h-5 stroke-[3]" />
+                        </div>
+                      </div>
+
+                      {/* Live Camera Feed (Tanpa AI Virtual Skeleton) */}
+                      <div className="relative flex-1 rounded-2xl border border-dashed border-[#ccff00]/60 bg-black/60 my-2 overflow-hidden flex items-center justify-center">
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className={`w-full h-full object-cover -scale-x-100 ${isWebcamActive ? 'block' : 'hidden'}`}
+                        />
+
+                        {isWebcamActive && (
+                          <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/70 border border-[#ccff00]/40 text-[#ccff00] text-[9px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#ccff00] animate-ping" />
+                            <span>LIVE CAMERA AKTIF</span>
                           </div>
                         )}
 
-                        {/* Workout Completed Confetti Overlay */}
-                        {workoutCompleted && (
-                          <div className="absolute inset-0 bg-green-950/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-3 text-center">
-                            <div className="w-12 h-12 rounded-full bg-green-500 text-black flex items-center justify-center mb-1.5 shadow-lg shadow-green-500/50 animate-bounce">
-                              <CheckCircle2 className="w-7 h-7" />
+                        {!isWebcamActive && (
+                          <div className="relative w-full h-full flex flex-col items-center justify-center p-4 text-center">
+                            <div className="w-12 h-12 rounded-full border-2 border-[#ccff00] bg-[#ccff00]/15 flex items-center justify-center mb-2 animate-pulse">
+                              <Camera className="w-6 h-6 text-[#ccff00]" />
                             </div>
-                            <h4 className="font-extrabold text-white text-sm">WORKOUT SELESAI!</h4>
-                            <p className="text-xs text-amber-300 font-bold font-mono mt-0.5">+25 MOVE COINS DIDAPAT</p>
-                            <span className="text-[10px] text-gray-300 mt-1">Scroll Pass 45 Menit Aktif!</span>
-                            
+                            <span className="text-xs font-bold text-white">Live Camera Validation</span>
+                            <span className="text-[10px] text-gray-400 max-w-[200px] mt-0.5">
+                              Fokus kamera fisik memvalidasi gerakan fisik Anda secara langsung.
+                            </span>
                             <button
-                              onClick={() => setAppMode('wallet')}
-                              className="mt-3 px-3 py-1.5 bg-green-400 text-black rounded-lg font-bold text-xs hover:bg-green-300 shadow"
+                              onClick={requestWebcamAccess}
+                              className="mt-2.5 px-3 py-1.5 rounded-xl bg-[#ccff00] text-black font-extrabold text-[11px] hover:bg-[#b8e600] flex items-center gap-1.5 shadow-md shadow-[#ccff00]/20"
                             >
-                              Lihat Dompet (+25)
+                              <Camera className="w-3.5 h-3.5" />
+                              <span>Izinkan Akses Kamera</span>
                             </button>
                           </div>
                         )}
+
+                        {/* Completed celebration */}
+                        {workoutCompleted && (
+                          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-4 text-center">
+                            <div className="w-12 h-12 rounded-full bg-[#ccff00] text-black flex items-center justify-center mb-2 animate-bounce">
+                              <CheckCircle2 className="w-8 h-8" />
+                            </div>
+                            <h4 className="font-extrabold text-white text-base">CHALLENGE COMPLETE!</h4>
+                            <p className="text-xs text-[#ccff00] font-bold font-mono mt-0.5">+25 MOVE COINS EARNED</p>
+                            <span className="text-[10px] text-gray-300 mt-1">Scroll pass terbuka untuk sesi berikutnya!</span>
+                            
+                            <div className="flex flex-col gap-2 w-full max-w-[220px] mt-3">
+                              <button
+                                onClick={() => handleSelectMoveItSession(moveItSessionNumber + 1)}
+                                className="w-full py-2 bg-[#ccff00] text-black font-extrabold text-xs rounded-xl shadow-lg shadow-[#ccff00]/30 hover:bg-[#b8e600]"
+                              >
+                                Sesi 1 Jam Berikutnya (+1 Jam)
+                              </button>
+                              <button
+                                onClick={() => setActiveTab('tracking')}
+                                className="w-full py-2 bg-gray-800 text-white font-semibold text-xs rounded-xl hover:bg-gray-700"
+                              >
+                                Lihat Tracking Aktivitas
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* BOTTOM WORKOUT CONTROLS */}
-                      <div className="flex items-center gap-2 z-20">
-                        <button
-                          onClick={() => setAppMode('doomscroll')}
-                          className="py-1.5 px-3 bg-gray-800 text-gray-300 rounded-lg text-xs font-semibold hover:bg-gray-700"
-                        >
-                          Batal
-                        </button>
-                        <button
-                          onClick={handleCompleteWorkout}
-                          disabled={workoutCompleted}
-                          className="flex-1 py-1.5 bg-green-500 hover:bg-green-400 text-black rounded-lg text-xs font-bold shadow-md shadow-green-500/25 disabled:opacity-50"
-                        >
-                          {workoutCompleted ? 'Sudah Selesai' : 'Selesaikan Sekarang'}
-                        </button>
+                      {/* Camera Pill & Fullscreen Toggle */}
+                      <div className="flex items-center justify-between text-[10px] text-gray-300 z-10 mb-2">
+                        <div className="px-2.5 py-1 rounded-full bg-black/80 border border-gray-800 flex items-center gap-1.5 text-[#ccff00]">
+                          <Camera className="w-3 h-3" />
+                          <span>{isWebcamActive ? 'Kamera fisik aktif' : 'Kamera siap'}</span>
+                        </div>
+                        <Maximize2 className="w-4 h-4 text-gray-400 cursor-pointer" />
                       </div>
+
+                      {/* Finish Workout CTA Button */}
+                      <button
+                        onClick={handleFinishWorkout}
+                        disabled={workoutCompleted}
+                        className="w-full py-3 rounded-2xl bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-xs shadow-lg shadow-[#ccff00]/25 flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all"
+                      >
+                        <span>Finish Workout</span>
+                        <ChevronRight className="w-4 h-4 stroke-[3]" />
+                      </button>
+
                     </div>
                   </div>
-                )}
-
-                {/* MODE 3: DASHBOARD IN-PHONE */}
-                {appMode === 'dashboard' && (
+                ) : activeTab === 'profile' ? (
+                  /* ------------------------------------------------------------ */
+                  /* SCREEN 4: SETTINGS & PROFILE / FOCUS / PRO AI COACH / HELP */
+                  /* ------------------------------------------------------------ */
                   <div className="p-4 space-y-4">
-                    <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b border-gray-800/80 pb-3">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => {
+                            if (profileSubView !== 'main') setProfileSubView('main');
+                            else setActiveTab('dashboard');
+                          }} 
+                          className="text-gray-400 hover:text-white"
+                        >
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <h2 className="text-sm font-bold text-white">
+                          {profileSubView === 'focus_notifications' 
+                            ? 'Focus & Notifications' 
+                            : profileSubView === 'pro_coach'
+                            ? 'MoveIt Pro AI Coach'
+                            : profileSubView === 'help_support'
+                            ? 'Help & Support'
+                            : 'Settings'}
+                        </h2>
+                      </div>
+                    </div>
+
+                    {profileSubView === 'main' ? (
+                      /* MAIN PROFILE (SCREENSHOT 4 + UPGRADE PRO + HELP & SIGNOUT) */
+                      <div className="space-y-4">
+                        {/* Alex Profile Card */}
+                        <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800 flex flex-col items-center text-center relative">
+                          <div className="relative w-16 h-16 rounded-full bg-gradient-to-tr from-gray-700 to-gray-500 overflow-hidden mb-2 border-2 border-[#ccff00]">
+                            <img 
+                              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80" 
+                              alt={userName} 
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-[#ccff00] text-black flex items-center justify-center text-[10px]">
+                              <Camera className="w-3 h-3" />
+                            </div>
+                          </div>
+                          <h3 className="text-sm font-bold text-white">{userName}</h3>
+                          <span className="text-[10px] text-gray-400">{userEmail}</span>
+                          
+                          <button 
+                            onClick={() => setProfileSubView('auth')}
+                            className="mt-2 px-3 py-1 rounded-full bg-gray-900 border border-gray-800 text-[10px] font-semibold text-[#ccff00] flex items-center gap-1 hover:border-[#ccff00]/40"
+                          >
+                            Edit Profile & Target <ChevronRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* UPGRADE PRO BANNER (FEATURE REQUEST: AI COACH & DATA ANALYSIS) */}
+                        <div 
+                          onClick={() => setProfileSubView('pro_coach')}
+                          className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-[#ccff00]/15 to-emerald-500/20 border border-[#ccff00]/50 cursor-pointer hover:border-[#ccff00] transition-all group"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-lg bg-[#ccff00] text-black flex items-center justify-center font-bold">
+                                <Crown className="w-4 h-4 fill-black" />
+                              </div>
+                              <div>
+                                <span className="text-xs font-bold text-white flex items-center gap-1">
+                                  MoveIt Pro — AI Coach
+                                  <span className="text-[9px] bg-[#ccff00] text-black font-extrabold px-1.5 py-0.2 rounded font-mono">PRO</span>
+                                </span>
+                                <span className="text-[10px] text-gray-300 block">Deep Correlation Analysis & Chatbot Coach</span>
+                              </div>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-[#ccff00] group-hover:translate-x-0.5 transition-transform" />
+                          </div>
+                        </div>
+
+                        {/* Account Group */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider px-1">Account</span>
+                          <div className="rounded-2xl bg-[#121620] border border-gray-800 divide-y divide-gray-800/80 text-xs">
+                            <div 
+                              onClick={() => setProfileSubView('auth')}
+                              className="p-3 flex justify-between items-center text-gray-300 cursor-pointer hover:text-white"
+                            >
+                              <span>Personal Information</span>
+                              <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                            </div>
+                            <div 
+                              onClick={() => setProfileSubView('pro_coach')}
+                              className="p-3 flex justify-between items-center text-gray-300 cursor-pointer hover:text-white"
+                            >
+                              <span className="flex items-center gap-2 text-[#ccff00]">
+                                <Crown className="w-3.5 h-3.5" />
+                                <strong>Upgrade Premium (AI Coach)</strong>
+                              </span>
+                              <span className="text-[10px] text-[#ccff00] font-mono">Aktif &gt;</span>
+                            </div>
+                            <div 
+                              onClick={() => setProfileSubView('focus_notifications')}
+                              className="p-3 flex justify-between items-center text-gray-300 cursor-pointer hover:text-white"
+                            >
+                              <span className="flex items-center gap-2">
+                                <Shield className="w-3.5 h-3.5 text-[#ccff00]" />
+                                <strong className="text-white">Focus & Notifications</strong>
+                              </span>
+                              <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Connected Accounts */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider px-1">Connected Accounts</span>
+                          <div className="rounded-2xl bg-[#121620] border border-gray-800 divide-y divide-gray-800/80 text-xs">
+                            <div className="p-3 flex justify-between items-center">
+                              <span className="text-gray-300">Google</span>
+                              <span className="text-[10px] text-[#ccff00] font-bold">Connected &gt;</span>
+                            </div>
+                            <div className="p-3 flex justify-between items-center">
+                              <span className="text-gray-300">Apple</span>
+                              <span className="text-[10px] text-gray-500">Not Connected &gt;</span>
+                            </div>
+                            <div className="p-3 flex justify-between items-center">
+                              <span className="text-gray-300">Strava</span>
+                              <span className="text-[10px] text-gray-500">Not Connected &gt;</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Goals & Preferences */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider px-1">Goals & Preferences</span>
+                          <div className="rounded-2xl bg-[#121620] border border-gray-800 divide-y divide-gray-800/80 text-xs">
+                            <div className="p-3 flex justify-between items-center">
+                              <span className="text-gray-300">Daily Activity Goal</span>
+                              <span className="text-[10px] text-gray-400 font-mono">{dailyGoalTarget} minutes &gt;</span>
+                            </div>
+                            <div 
+                              onClick={() => setProfileSubView('focus_notifications')}
+                              className="p-3 flex justify-between items-center cursor-pointer"
+                            >
+                              <span className="text-gray-300">Target Focus Apps</span>
+                              <span className="text-[10px] text-[#ccff00] font-mono">{selectedFocusApps.length} apps &gt;</span>
+                            </div>
+                            <div className="p-3 flex justify-between items-center">
+                              <span className="text-gray-300">Workout Difficulty</span>
+                              <span className="text-[10px] text-gray-400">{fitnessLevel} &gt;</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ABOUT & SIGNOUT GROUP (SCREENSHOT 4 REQUIREMENTS) */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider px-1">About</span>
+                          <div className="rounded-2xl bg-[#121620] border border-gray-800 divide-y divide-gray-800/80 text-xs">
+                            <div 
+                              onClick={() => setProfileSubView('help_support')}
+                              className="p-3 flex justify-between items-center text-gray-300 cursor-pointer hover:text-white"
+                            >
+                              <span className="flex items-center gap-2">
+                                <HelpCircle className="w-3.5 h-3.5 text-gray-400" />
+                                <span>Help & Support</span>
+                              </span>
+                              <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                            </div>
+
+                            <div 
+                              onClick={handleSignOut}
+                              className="p-3 flex justify-between items-center text-red-400 font-semibold cursor-pointer hover:bg-red-500/10 transition-colors"
+                            >
+                              <span className="flex items-center gap-2">
+                                <LogOut className="w-3.5 h-3.5 text-red-500" />
+                                <span>Sign Out</span>
+                              </span>
+                              <ChevronRight className="w-3.5 h-3.5 text-red-500/60" />
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    ) : profileSubView === 'pro_coach' ? (
+                      /* -------------------------------------------------------- */
+                      /* SUBVIEW: MOVEIT PRO AI COACH & DEEP ANALYTICS */
+                      /* -------------------------------------------------------- */
+                      <div className="space-y-3 flex-1 flex flex-col justify-between">
+                        
+                        {/* Deep Correlation Analytics Card */}
+                        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-[#131b26] to-[#0d131d] border border-[#ccff00]/40 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-white flex items-center gap-1.5">
+                              <Sparkles className="w-4 h-4 text-[#ccff00]" />
+                              AI Correlation Insight
+                            </span>
+                            <span className="text-[9px] bg-[#ccff00]/20 text-[#ccff00] px-2 py-0.5 rounded-full font-bold">
+                              Live Sync
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5 text-[11px] text-gray-300 leading-snug">
+                            <div className="p-2 rounded-xl bg-black/40 border border-white/5">
+                              <strong className="text-[#ccff00] block text-[10px]">📊 Screen Time vs Kalori:</strong>
+                              Hari ini screen time turun 42%, pembakaran kalori naik +28%! Waktu terlama scroll adalah jam 12:00–15:00 (28m).
+                            </div>
+                            <div className="p-2 rounded-xl bg-black/40 border border-white/5">
+                              <strong className="text-teal-300 block text-[10px]">💡 Rekomendasi Coach Max:</strong>
+                              Lakukan 1 sesi stretching 3 menit sebelum tidur untuk redakan beban leher 27kg akibat menunduk.
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Interactive Coach Chatbot */}
+                        <div className="p-3 rounded-2xl bg-[#121620] border border-gray-800 flex-1 flex flex-col justify-between min-h-[260px]">
+                          <div className="flex items-center justify-between border-b border-gray-800 pb-2 mb-2 text-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-[#ccff00] text-black flex items-center justify-center font-bold">
+                                <Bot className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="font-bold text-white">Coach Max AI</span>
+                            </div>
+                            <span className="text-[9px] text-[#ccff00] font-mono">Konsultasi Aktif</span>
+                          </div>
+
+                          {/* Message bubble stream */}
+                          <div ref={chatScrollRef} className="space-y-2 overflow-y-auto max-h-[170px] pr-1 text-xs">
+                            {chatMessages.map((msg) => (
+                              <div
+                                key={msg.id}
+                                className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                              >
+                                <div
+                                  className={`p-2.5 rounded-2xl max-w-[85%] text-[11px] leading-relaxed ${
+                                    msg.sender === 'user'
+                                      ? 'bg-[#ccff00] text-black font-medium'
+                                      : 'bg-[#18202d] text-gray-200 border border-gray-800'
+                                  }`}
+                                >
+                                  {msg.text}
+                                </div>
+                                <span className="text-[8px] text-gray-500 mt-0.5 px-1 font-mono">{msg.time}</span>
+                              </div>
+                            ))}
+
+                            {isCoachTyping && (
+                              <div className="p-2 rounded-xl bg-[#18202d] text-[10px] text-gray-400 italic inline-flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#ccff00] animate-bounce" />
+                                Coach Max sedang mengetik rekomendasi...
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Quick Inquiry Chips */}
+                          <div className="flex gap-1.5 overflow-x-auto py-2 scrollbar-none text-[9px]">
+                            <button
+                              onClick={() => handleSendMessage('Analisis korelasi screentime dan kalori saya!')}
+                              className="px-2 py-1 rounded-full bg-black/60 border border-gray-700 text-gray-300 hover:border-[#ccff00] whitespace-nowrap"
+                            >
+                              📊 Analisis Korelasi
+                            </button>
+                            <button
+                              onClick={() => handleSendMessage('Latihan untuk leher pegal karena HP?')}
+                              className="px-2 py-1 rounded-full bg-black/60 border border-gray-700 text-gray-300 hover:border-[#ccff00] whitespace-nowrap"
+                            >
+                              💆 Leher Pegal HP
+                            </button>
+                            <button
+                              onClick={() => handleSendMessage('Bantu saya kurangi scroll sosmed malam hari')}
+                              className="px-2 py-1 rounded-full bg-black/60 border border-gray-700 text-gray-300 hover:border-[#ccff00] whitespace-nowrap"
+                            >
+                              🌙 Stop Scroll Malam
+                            </button>
+                          </div>
+
+                          {/* Input Bar */}
+                          <div className="flex items-center gap-1.5 pt-1 border-t border-gray-800">
+                            <input
+                              type="text"
+                              value={inputMessage}
+                              onChange={(e) => setInputMessage(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                              placeholder="Tanya coach tentang olahraga & sosmed..."
+                              className="flex-1 bg-black/60 border border-gray-700 rounded-xl px-2.5 py-1.5 text-[11px] text-white focus:outline-none focus:border-[#ccff00]"
+                            />
+                            <button
+                              onClick={() => handleSendMessage()}
+                              className="w-7 h-7 rounded-xl bg-[#ccff00] text-black flex items-center justify-center hover:bg-[#b8e600] flex-shrink-0"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                      </div>
+                    ) : profileSubView === 'help_support' ? (
+                      /* -------------------------------------------------------- */
+                      /* SUBVIEW: HELP & SUPPORT */
+                      /* -------------------------------------------------------- */
+                      <div className="space-y-3 text-xs">
+                        <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800 space-y-2">
+                          <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                            <HelpCircle className="w-4 h-4 text-[#ccff00]" />
+                            Bantuan & FAQ MOVEIT
+                          </h4>
+                          <p className="text-[11px] text-gray-300 leading-relaxed">
+                            Panduan cepat penggunaan aplikasi dan privasi pelacakan:
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl bg-[#121620] border border-gray-800 divide-y divide-gray-800 text-xs">
+                          <div className="p-3 space-y-1">
+                            <strong className="text-white block text-[11px]">1. Bagaimana cara validasi kamera AI?</strong>
+                            <p className="text-[10px] text-gray-400">
+                              Kamera mendeteksi landmark pose tubuh pengguna secara lokal (edge AI). Tidak ada video yang direkam atau dikirim ke server.
+                            </p>
+                          </div>
+
+                          <div className="p-3 space-y-1">
+                            <strong className="text-white block text-[11px]">2. Apakah screen time saya terbaca otomatis?</strong>
+                            <p className="text-[10px] text-gray-400">
+                              Ya, sistem membaca statistik waktu penggunaan dari Android UsageStatsManager untuk TikTok, Instagram, dan YouTube.
+                            </p>
+                          </div>
+
+                          <div className="p-3 space-y-1">
+                            <strong className="text-white block text-[11px]">3. Cara klaim voucher hadiah?</strong>
+                            <p className="text-[10px] text-gray-400">
+                              Kumpulkan Move Coins dari micro-workout lalu tukarkan di tab Hadiah. Voucher instan dilengkapi kode QR dan barcode.
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => alert('Pesan bantuan terkirim ke support@moveit.app')}
+                          className="w-full py-2.5 bg-gray-900 border border-gray-700 hover:border-[#ccff00] text-gray-200 text-xs font-semibold rounded-xl"
+                        >
+                          Hubungi Customer Service
+                        </button>
+                      </div>
+                    ) : (
+                      /* -------------------------------------------------------- */
+                      /* SUBVIEW: FOCUS & NOTIFICATIONS (SCREENSHOT 5) */
+                      /* -------------------------------------------------------- */
+                      <div className="space-y-4">
+                        {/* Shield Card Banner */}
+                        <div className="p-4 rounded-3xl bg-gradient-to-br from-[#121824] to-[#0d121c] border border-gray-800 space-y-2">
+                          <div className="w-9 h-9 rounded-2xl bg-[#ccff00]/15 text-[#ccff00] flex items-center justify-center">
+                            <Shield className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-xs font-extrabold text-white">Turn screen time into movement.</h3>
+                          <p className="text-[10px] text-gray-400 leading-relaxed">
+                            Set limits for social apps and get MoveIt workout prompts to keep yourself active and focused.
+                          </p>
+                        </div>
+
+                        {/* Notification Toggles */}
+                        <div className="rounded-2xl bg-[#121620] border border-gray-800 divide-y divide-gray-800/80 text-xs">
+                          <div className="p-3 flex justify-between items-center">
+                            <div>
+                              <span className="text-white block font-medium">Screen-time reminders</span>
+                              <span className="text-[9px] text-gray-400">Notify when approaching limit</span>
+                            </div>
+                            <input 
+                              type="checkbox" 
+                              checked={screenTimeReminders} 
+                              onChange={(e) => setScreenTimeReminders(e.target.checked)}
+                              className="accent-[#ccff00] w-4 h-4 cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="p-3 flex justify-between items-center">
+                            <div>
+                              <span className="text-white block font-medium">MoveIt workout prompts</span>
+                              <span className="text-[9px] text-gray-400">Prompt a workout when limit is reached</span>
+                            </div>
+                            <input 
+                              type="checkbox" 
+                              checked={workoutPrompts} 
+                              onChange={(e) => setWorkoutPrompts(e.target.checked)}
+                              className="accent-[#ccff00] w-4 h-4 cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="p-3 flex justify-between items-center">
+                            <div>
+                              <span className="text-white block font-medium">Daily goal reminders</span>
+                              <span className="text-[9px] text-gray-400">Stay consistent with your goals</span>
+                            </div>
+                            <input 
+                              type="checkbox" 
+                              checked={dailyGoalReminders} 
+                              onChange={(e) => setDailyGoalReminders(e.target.checked)}
+                              className="accent-[#ccff00] w-4 h-4 cursor-pointer"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Social App Threshold */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                              Social App Threshold ({monitoredApps.length} Apps)
+                            </span>
+                            <span className="text-[9px] text-[#ccff00] font-mono font-semibold">
+                              Alarm Otomatis
+                            </span>
+                          </div>
+
+                          <div className="rounded-2xl bg-[#121620] border border-gray-800 divide-y divide-gray-800/80 text-xs">
+                            {monitoredApps.map((app) => (
+                              <div key={app.id} className="p-2.5 flex justify-between items-center hover:bg-white/[0.02] transition-colors">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  {renderAppIcon(app.iconType, app.name, "w-7 h-7")}
+                                  <div className="min-w-0">
+                                    <span className="text-white font-bold block text-xs truncate leading-tight">
+                                      {app.name}
+                                    </span>
+                                    <span className="text-[9px] text-gray-400 block truncate">
+                                      {app.category}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {/* Dropdown Dropbox Pilihan Menit */}
+                                  <div className="relative">
+                                    <select
+                                      value={app.thresholdMinutes}
+                                      onChange={(e) => {
+                                        const newMin = Number(e.target.value);
+                                        setMonitoredApps(prev => prev.map(a => a.id === app.id ? { ...a, thresholdMinutes: newMin } : a));
+                                        if (soundEnabled) playSound('click');
+                                      }}
+                                      className="appearance-none bg-[#192231] hover:bg-[#222e42] text-white text-[11px] font-mono font-bold py-1.5 pl-2.5 pr-6 rounded-xl border border-gray-700 hover:border-[#ccff00] focus:border-[#ccff00] focus:outline-none cursor-pointer transition-all"
+                                    >
+                                      {THRESHOLD_OPTIONS.map((opt) => (
+                                        <option key={opt.value} value={opt.value} className="bg-[#121620] text-white">
+                                          {opt.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <ChevronDown className="w-3 h-3 text-[#ccff00] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                  </div>
+
+                                  {/* Tombol Hapus Aplikasi */}
+                                  {monitoredApps.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setMonitoredApps(prev => prev.filter(a => a.id !== app.id));
+                                        if (soundEnabled) playSound('click');
+                                      }}
+                                      className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                      title={`Hapus ${app.name}`}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Tombol Tambah Aplikasi */}
+                          {!showAddAppModal ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowAddAppModal(true)}
+                              className="w-full py-2.5 px-3 rounded-2xl bg-gradient-to-r from-[#16202e] to-[#121924] border border-gray-800 hover:border-[#ccff00] text-[#ccff00] text-[11px] font-bold flex items-center justify-center gap-2 transition-all group"
+                            >
+                              <Plus className="w-3.5 h-3.5 group-hover:scale-125 transition-transform" />
+                              <span>+ Tambah Aplikasi (Threads, Telegram, dll)</span>
+                            </button>
+                          ) : (
+                            /* Panel Tambah Aplikasi Inline */
+                            <div className="p-3.5 rounded-2xl bg-[#141b27] border border-[#ccff00]/40 space-y-3 animate-fadeIn">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                                  <Plus className="w-3.5 h-3.5 text-[#ccff00]" />
+                                  Tambah Aplikasi yang Ingin Dipantau
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowAddAppModal(false)}
+                                  className="text-gray-400 hover:text-white p-1"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+
+                              {/* Quick Add Presets */}
+                              <div className="space-y-1.5">
+                                <span className="text-[10px] text-gray-400 font-semibold block">Pilih Cepat Rekomendasi:</span>
+                                <div className="grid grid-cols-1 gap-1.5">
+                                  {PRESET_ADDABLE_APPS.map((preset) => {
+                                    const isAlreadyAdded = monitoredApps.some(a => a.id === preset.id);
+                                    return (
+                                      <div
+                                        key={preset.id}
+                                        className="p-2 rounded-xl bg-[#0f1420] border border-gray-800 flex items-center justify-between"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          {renderAppIcon(preset.iconType, preset.name, "w-6 h-6")}
+                                          <div>
+                                            <span className="text-white text-xs font-bold block leading-tight">{preset.name}</span>
+                                            <span className="text-[9px] text-gray-400 block">{preset.category}</span>
+                                          </div>
+                                        </div>
+
+                                        <button
+                                          type="button"
+                                          disabled={isAlreadyAdded}
+                                          onClick={() => handleAddPresetApp(preset)}
+                                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                                            isAlreadyAdded
+                                              ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                                              : 'bg-[#ccff00] hover:bg-[#b8e600] text-black shadow'
+                                          }`}
+                                        >
+                                          {isAlreadyAdded ? '✓ Dipantau' : '+ Tambah'}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Custom App Input */}
+                              <div className="pt-2 border-t border-gray-800/80 space-y-2">
+                                <span className="text-[10px] text-gray-400 font-semibold block">Atau Tambah Aplikasi Lain:</span>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={customAppName}
+                                    onChange={(e) => setCustomAppName(e.target.value)}
+                                    placeholder="Nama aplikasi (misal: WhatsApp, Discord)..."
+                                    className="flex-1 bg-black/60 border border-gray-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#ccff00]"
+                                  />
+                                  <select
+                                    value={customAppThreshold}
+                                    onChange={(e) => setCustomAppThreshold(Number(e.target.value))}
+                                    className="bg-black/60 border border-gray-700 rounded-xl px-2 py-1.5 text-[10px] text-white font-mono"
+                                  >
+                                    <option value={15}>15m</option>
+                                    <option value={30}>30m</option>
+                                    <option value={45}>45m</option>
+                                    <option value={60}>60m</option>
+                                  </select>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={handleAddCustomApp}
+                                  disabled={!customAppName.trim()}
+                                  className="w-full py-2 bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-[11px] rounded-xl disabled:opacity-40 transition-all"
+                                >
+                                  + Tambahkan ke Pelacakan
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          <span className="text-[9px] text-gray-500 block px-1 leading-relaxed">
+                            Pilih batas menit harian di setiap dropbox. Alarm micro-workout MoveIt akan otomatis aktif saat total screentime melewati ambang batas tersebut.
+                          </span>
+                        </div>
+
+                        {/* Schedule */}
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Schedule</span>
+                          <div className="rounded-2xl bg-[#121620] border border-gray-800 divide-y divide-gray-800/80 text-xs">
+                            <div className="p-3 flex justify-between items-center">
+                              <span className="text-white">Active hours</span>
+                              <span className="text-[10px] font-mono text-gray-400">08:00 - 22:00 &gt;</span>
+                            </div>
+                            <div className="p-3 flex justify-between items-center">
+                              <div>
+                                <span className="text-white block">Quiet hours</span>
+                                <span className="text-[9px] text-gray-500">Disable notifications during this time</span>
+                              </div>
+                              <input 
+                                type="checkbox" 
+                                checked={quietHours} 
+                                onChange={(e) => setQuietHours(e.target.checked)}
+                                className="accent-[#ccff00] w-4 h-4 cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    )}
+
+                  </div>
+                ) : (
+                  /* ------------------------------------------------------------ */
+                  /* SCREEN 5: REWARDS MARKETPLACE */
+                  /* ------------------------------------------------------------ */
+                  <div className="p-4 space-y-4">
+                    <div className="flex items-center justify-between border-b border-gray-800/80 pb-3">
                       <div>
-                        <h3 className="text-sm font-bold text-white">Daily Screen Time</h3>
-                        <p className="text-[10px] text-gray-400">Ringkasan Hari Ini</p>
+                        <h2 className="text-sm font-bold text-white">Rewards Marketplace</h2>
+                        <p className="text-[10px] text-gray-400">Tukar Move Coins ke Voucher</p>
                       </div>
-                      <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full font-mono">
-                        65m / 60m
-                      </span>
-                    </div>
-
-                    {/* Target Apps Breakdown */}
-                    <div className="space-y-2.5">
-                      <div className="p-2.5 rounded-xl bg-gray-900 border border-gray-800 text-xs">
-                        <div className="flex justify-between mb-1">
-                          <span className="font-semibold text-pink-400">TikTok</span>
-                          <span className="font-mono text-white">35 Menit</span>
-                        </div>
-                        <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-pink-500 h-1.5 w-[70%]" />
-                        </div>
-                      </div>
-
-                      <div className="p-2.5 rounded-xl bg-gray-900 border border-gray-800 text-xs">
-                        <div className="flex justify-between mb-1">
-                          <span className="font-semibold text-purple-400">Instagram</span>
-                          <span className="font-mono text-white">20 Menit</span>
-                        </div>
-                        <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-purple-500 h-1.5 w-[45%]" />
-                        </div>
-                      </div>
-
-                      <div className="p-2.5 rounded-xl bg-gray-900 border border-gray-800 text-xs">
-                        <div className="flex justify-between mb-1">
-                          <span className="font-semibold text-red-400">YouTube Shorts</span>
-                          <span className="font-mono text-white">10 Menit</span>
-                        </div>
-                        <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-red-500 h-1.5 w-[25%]" />
-                        </div>
+                      <div className="px-2.5 py-1 rounded-full bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/30 font-mono text-xs font-bold">
+                        {walletBalance} Coins
                       </div>
                     </div>
 
-                    {/* Streak & Stats */}
-                    <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                      <div className="p-2.5 rounded-xl bg-gray-900 border border-gray-800">
-                        <div className="text-base font-bold text-amber-400 font-mono">🔥 4 Hari</div>
-                        <div className="text-[10px] text-gray-400">Workout Streak</div>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-gray-900 border border-gray-800">
-                        <div className="text-base font-bold text-green-400 font-mono">2 Sesi</div>
-                        <div className="text-[10px] text-gray-400">Hari Ini</div>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={triggerInterstitialIntervention}
-                      className="w-full py-2.5 bg-green-500 text-black text-xs font-bold rounded-xl shadow hover:bg-green-400"
-                    >
-                      Picu Workout Interstitial
-                    </button>
-                  </div>
-                )}
-
-                {/* MODE 4: WALLET IN-PHONE */}
-                {appMode === 'wallet' && (
-                  <div className="p-4 space-y-4">
-                    {/* Digital Card */}
-                    <div className="rounded-2xl p-4 bg-gradient-to-tr from-green-600 via-emerald-600 to-teal-700 text-black shadow-xl">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-black/70">Move Coins Ledger</span>
-                        <Coins className="w-5 h-5 text-black" />
-                      </div>
-                      <div className="mt-3">
-                        <span className="text-xs text-black/80 font-medium">Saldo Tersedia</span>
-                        <div className="text-3xl font-extrabold font-mono text-black">{walletBalance} Coins</div>
-                      </div>
-                      <div className="mt-3 pt-2 border-t border-black/10 flex justify-between text-[10px] text-black/80">
-                        <span>User: demo_judge@m2e</span>
-                        <span>Tier: Silver Mover</span>
-                      </div>
-                    </div>
-
-                    {/* Transactions list */}
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-bold text-gray-300">Riwayat Koin Terbaru</h4>
-                      <div className="p-2.5 rounded-xl bg-gray-900 border border-gray-800 text-xs flex justify-between items-center">
-                        <div>
-                          <div className="font-semibold text-white">Reward Workout Plank</div>
-                          <div className="text-[10px] text-gray-400">Validasi Kamera Berhasil</div>
+                    {redeemedVoucher && (
+                      <div className="p-3 rounded-2xl bg-[#121620] border border-[#ccff00]/50 text-center space-y-2">
+                        <span className="text-[10px] text-[#ccff00] font-bold uppercase tracking-wider block">Voucher Siap Digunakan!</span>
+                        <h4 className="text-xs font-bold text-white">{redeemedVoucher.title}</h4>
+                        
+                        {/* Mock QR */}
+                        <div className="p-2 bg-white rounded-xl mx-auto w-24 h-24 flex items-center justify-center">
+                          <QrCode className="w-20 h-20 text-black" />
                         </div>
-                        <span className="font-mono font-bold text-green-400">+25</span>
+                        <span className="font-mono text-[10px] font-bold text-amber-300 block">{redeemedVoucher.code}</span>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-gray-900 border border-gray-800 text-xs flex justify-between items-center">
-                        <div>
-                          <div className="font-semibold text-white">Bonus Streak 3-Hari</div>
-                          <div className="text-[10px] text-gray-400">Daily Milestone</div>
-                        </div>
-                        <span className="font-mono font-bold text-green-400">+50</span>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => setAppMode('rewards')}
-                      className="w-full py-2.5 bg-amber-400 text-black text-xs font-bold rounded-xl shadow hover:bg-amber-300 flex items-center justify-center gap-1.5"
-                    >
-                      <Gift className="w-4 h-4" />
-                      Tukar Koin ke Voucher
-                    </button>
-                  </div>
-                )}
-
-                {/* MODE 5: REWARDS MARKETPLACE IN-PHONE */}
-                {appMode === 'rewards' && (
-                  <div className="p-3.5 space-y-3">
-                    <div className="flex items-center justify-between border-b border-gray-800 pb-2">
-                      <span className="text-xs font-bold text-white">Marketplace Voucher</span>
-                      <span className="text-xs text-amber-300 font-mono font-bold">{walletBalance} Coins</span>
-                    </div>
+                    )}
 
                     <div className="space-y-2.5">
                       {rewardsList.map((rw) => (
-                        <div key={rw.id} className="p-2.5 rounded-xl bg-gray-900 border border-gray-800 flex gap-2.5 items-center">
-                          <img src={rw.image_url} alt={rw.title} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+                        <div key={rw.id} className="p-2.5 rounded-2xl bg-[#121620] border border-gray-800 flex gap-2.5 items-center">
+                          <img src={rw.image_url} alt={rw.title} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
                           <div className="flex-1 min-w-0">
                             <h5 className="text-xs font-bold text-white truncate">{rw.title}</h5>
-                            <span className="text-[10px] text-amber-400 font-mono font-bold block mt-0.5">
+                            <span className="text-[10px] text-[#ccff00] font-mono font-bold block mt-0.5">
                               {rw.coin_price} Coins
                             </span>
                             <button
-                              onClick={() => handleRedeemReward(rw)}
+                              onClick={() => handleRedeem(rw)}
                               disabled={walletBalance < rw.coin_price}
-                              className="mt-1 px-2.5 py-1 bg-green-500 hover:bg-green-400 text-black text-[10px] font-bold rounded disabled:opacity-40"
+                              className="mt-1 px-2.5 py-1 bg-[#ccff00] hover:bg-[#b8e600] text-black text-[9px] font-bold rounded-lg disabled:opacity-30"
                             >
                               Klaim Voucher
                             </button>
@@ -771,300 +1945,410 @@ export default function MobileDemoPage() {
                   </div>
                 )}
 
-                {/* MODE 6: VOUCHER DETAILS & DYNAMIC QR */}
-                {appMode === 'voucher' && redeemedVoucher && (
-                  <div className="p-4 space-y-4 text-center">
-                    <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-400 border border-green-500/40 flex items-center justify-center mx-auto">
-                      <TicketCheck className="w-6 h-6" />
-                    </div>
+              </div>
 
-                    <div>
-                      <h4 className="text-sm font-bold text-white">{redeemedVoucher.title}</h4>
-                      <p className="text-[11px] text-gray-400 mt-0.5">Tunjukkan QR ini ke kasir mitra</p>
-                    </div>
-
-                    {/* DYNAMIC QR CODE CARD */}
-                    <div className="p-4 bg-white rounded-2xl mx-auto w-44 shadow-lg text-black space-y-2">
-                      <div className="w-36 h-36 border-4 border-black p-2 mx-auto flex flex-col justify-between">
-                        {/* Realistic Mock QR Graphic */}
-                        <div className="grid grid-cols-4 gap-1.5 h-full">
-                          <div className="bg-black rounded-sm" />
-                          <div className="bg-black/30 rounded-sm" />
-                          <div className="bg-black rounded-sm" />
-                          <div className="bg-black rounded-sm" />
-                          <div className="bg-black/20 rounded-sm" />
-                          <div className="bg-black rounded-sm" />
-                          <div className="bg-black/60 rounded-sm" />
-                          <div className="bg-black rounded-sm" />
-                          <div className="bg-black rounded-sm" />
-                          <div className="bg-black/40 rounded-sm" />
-                          <div className="bg-black rounded-sm" />
-                          <div className="bg-black/80 rounded-sm" />
-                        </div>
-                      </div>
-                      <span className="font-mono text-[10px] font-bold tracking-widest block">{redeemedVoucher.code}</span>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        navigator.clipboard?.writeText(redeemedVoucher.code);
-                        setCopiedCode(true);
-                        setTimeout(() => setCopiedCode(false), 2000);
-                      }}
-                      className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-xs text-white rounded-xl font-mono flex items-center justify-center gap-1.5 mx-auto"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      {copiedCode ? 'Tersalin!' : 'Salin Kode Voucher'}
-                    </button>
-
-                    <button
-                      onClick={() => setAppMode('doomscroll')}
-                      className="text-xs text-green-400 hover:underline block mx-auto"
-                    >
-                      Kembali ke Doomscroll Feed
-                    </button>
+              {/* ============================================================== */}
+              {/* THE 5 BOTTOM NAVIGATION TABS (EXACTLY MATCHING SCREENSHOT) */}
+              {/* ============================================================== */}
+              <div className="absolute bottom-0 inset-x-0 h-16 bg-[#090c12]/95 backdrop-blur-md border-t border-gray-800/80 px-2 flex items-center justify-around z-30 select-none">
+                
+                {/* 1. Dashboard Tab */}
+                <button
+                  onClick={() => {
+                    setIsLoggedIn(true);
+                    setActiveTab('dashboard');
+                    setProfileSubView('main');
+                  }}
+                  className={`flex flex-col items-center gap-1 flex-1 py-1 transition-colors ${
+                    activeTab === 'dashboard' && profileSubView !== 'auth' ? 'text-[#ccff00]' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <div className={`p-1 rounded-lg ${activeTab === 'dashboard' && profileSubView !== 'auth' ? 'bg-[#ccff00]/15' : ''}`}>
+                    <Flame className="w-4 h-4" />
                   </div>
-                )}
+                  <span className="text-[9px] font-semibold">Dashboard</span>
+                </button>
+
+                {/* 2. Tracking Tab */}
+                <button
+                  onClick={() => {
+                    setIsLoggedIn(true);
+                    setActiveTab('tracking');
+                    setProfileSubView('main');
+                  }}
+                  className={`flex flex-col items-center gap-1 flex-1 py-1 transition-colors ${
+                    activeTab === 'tracking' ? 'text-[#ccff00]' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <div className={`p-1 rounded-lg ${activeTab === 'tracking' ? 'bg-[#ccff00]/15' : ''}`}>
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <span className="text-[9px] font-semibold">Tracking</span>
+                </button>
+
+                {/* 3. Center MoveIt Tab (Prominent glowing pill button) */}
+                <button
+                  onClick={() => {
+                    setIsLoggedIn(true);
+                    setActiveTab('moveit');
+                    setWorkoutSecondsLeft(30);
+                    setRepCount(23);
+                    setWorkoutCompleted(false);
+                  }}
+                  className="flex flex-col items-center -mt-3 group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-[#ccff00] text-black flex items-center justify-center shadow-lg shadow-[#ccff00]/40 group-hover:scale-105 transition-transform">
+                    <Zap className="w-6 h-6 fill-black" />
+                  </div>
+                  <span className="text-[9px] font-extrabold text-[#ccff00] mt-0.5">MoveIt</span>
+                </button>
+
+                {/* 4. Rewards Tab */}
+                <button
+                  onClick={() => {
+                    setIsLoggedIn(true);
+                    setActiveTab('rewards');
+                    setProfileSubView('main');
+                  }}
+                  className={`flex flex-col items-center gap-1 flex-1 py-1 transition-colors ${
+                    activeTab === 'rewards' ? 'text-[#ccff00]' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <div className={`p-1 rounded-lg ${activeTab === 'rewards' ? 'bg-[#ccff00]/15' : ''}`}>
+                    <Gift className="w-4 h-4" />
+                  </div>
+                  <span className="text-[9px] font-semibold">Rewards</span>
+                </button>
+
+                {/* 5. Profile Tab */}
+                <button
+                  onClick={() => {
+                    setIsLoggedIn(true);
+                    setActiveTab('profile');
+                    setProfileSubView('main');
+                  }}
+                  className={`flex flex-col items-center gap-1 flex-1 py-1 transition-colors ${
+                    activeTab === 'profile' ? 'text-[#ccff00]' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <div className={`p-1 rounded-lg ${activeTab === 'profile' ? 'bg-[#ccff00]/15' : ''}`}>
+                    <User className="w-4 h-4" />
+                  </div>
+                  <span className="text-[9px] font-semibold">Profile</span>
+                </button>
 
               </div>
 
-              {/* ============================================================== */}
-              {/* SMARTPHONE BOTTOM APP NAVIGATION BAR */}
-              {/* ============================================================== */}
-              <div className="absolute bottom-0 inset-x-0 h-14 bg-black/90 backdrop-blur border-t border-gray-900 px-3 flex items-center justify-around z-30 text-[10px]">
-                <button
-                  onClick={() => setAppMode('doomscroll')}
-                  className={`flex flex-col items-center gap-0.5 ${appMode === 'doomscroll' ? 'text-green-400 font-bold' : 'text-gray-400'}`}
-                >
-                  <Smartphone className="w-4 h-4" />
-                  <span>Sosmed</span>
-                </button>
-
-                <button
-                  onClick={() => setAppMode('interstitial')}
-                  className={`flex flex-col items-center gap-0.5 ${appMode === 'interstitial' ? 'text-green-400 font-bold' : 'text-gray-400'}`}
-                >
-                  <Flame className="w-4 h-4" />
-                  <span>Workout</span>
-                </button>
-
-                <button
-                  onClick={() => setAppMode('dashboard')}
-                  className={`flex flex-col items-center gap-0.5 ${appMode === 'dashboard' ? 'text-green-400 font-bold' : 'text-gray-400'}`}
-                >
-                  <TrendingUp className="w-4 h-4" />
-                  <span>Stats</span>
-                </button>
-
-                <button
-                  onClick={() => setAppMode('wallet')}
-                  className={`flex flex-col items-center gap-0.5 ${appMode === 'wallet' ? 'text-green-400 font-bold' : 'text-gray-400'}`}
-                >
-                  <Coins className="w-4 h-4" />
-                  <span>Wallet</span>
-                </button>
-
-                <button
-                  onClick={() => setAppMode('rewards')}
-                  className={`flex flex-col items-center gap-0.5 ${appMode === 'rewards' || appMode === 'voucher' ? 'text-green-400 font-bold' : 'text-gray-400'}`}
-                >
-                  <Gift className="w-4 h-4" />
-                  <span>Hadiah</span>
-                </button>
-              </div>
-
-              {/* HOME INDICATOR GESTURE BAR */}
-              <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/40 rounded-full z-40 pointer-events-none" />
+              {/* Home Gesture Bar */}
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/40 rounded-full z-40 pointer-events-none" />
 
             </div>
           </div>
         </div>
 
         {/* ==================================================================== */}
-        {/* COLUMN 2: PRESENTER COCKPIT & LIVE SCENARIOS (7 COLS ON DESKTOP) */}
+        {/* COLUMN 2: PRESENTER COCKPIT (FOR PITCHING TO JUDGES) */}
         {/* ==================================================================== */}
         <div className="lg:col-span-6 xl:col-span-7 space-y-6">
           
-          {/* QUICK DEMO SCENARIOS BUTTONS */}
-          <div className="p-6 rounded-3xl bg-[#0f172a] border border-gray-800 shadow-xl space-y-4">
+          {/* Quick Screen Switcher (Direct Pitch Buttons) */}
+          <div className="p-6 rounded-3xl bg-[#0f1420] border border-gray-800 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-green-400">
+              <div className="flex items-center gap-2 text-[#ccff00]">
                 <Sparkles className="w-5 h-5" />
-                <h2 className="text-lg font-bold text-white">Skenario Presentasi Cepat (1-Click Demo)</h2>
+                <h2 className="text-lg font-bold text-white">Skenario Presentasi Cepat (1-Click Switcher)</h2>
               </div>
               <span className="text-xs bg-gray-800 text-gray-300 px-2.5 py-1 rounded-md font-mono">
-                Pitch Mode
+                Judge Demo
               </span>
             </div>
-            
+
             <p className="text-xs text-gray-300 leading-relaxed">
-              Klik salah satu tombol skenario di bawah ini untuk menggerakkan tampilan HP secara otomatis saat presentasi di hadapan juri:
+              Klik salah satu tombol di bawah untuk langsung mengganti layar handphone sesuai alur presentasi:
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               
-              {/* Skenario 1 */}
+              {/* Button 0: Auth & Personalisasi */}
               <button
                 onClick={() => {
-                  setAppMode('doomscroll');
-                  setScrollSeconds(55);
-                  setIsScrollingAuto(true);
+                  setIsLoggedIn(false);
+                  setProfileSubView('auth');
                   if (soundEnabled) playSound('click');
                 }}
-                className="p-3.5 rounded-2xl bg-gradient-to-br from-gray-900 to-[#162238] border border-gray-700/80 hover:border-green-500/60 text-left transition-all group"
+                className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  !isLoggedIn || profileSubView === 'auth'
+                    ? 'bg-[#152010] border-[#ccff00] text-white shadow-md'
+                    : 'bg-[#131926] border-gray-800 hover:border-gray-700 text-gray-300'
+                }`}
               >
-                <div className="flex items-center justify-between text-xs font-bold text-green-400 mb-1">
-                  <span>1. Simulasi Doomscrolling</span>
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <div className="flex items-center justify-between text-xs font-bold text-teal-400 mb-1">
+                  <span>🔐 1. Login & Personalisasi Akun</span>
+                  <ChevronRight className="w-4 h-4" />
                 </div>
                 <p className="text-[11px] text-gray-300">
-                  Putar video TikTok/Shorts dan amati timer screen-time berjalan mendekati batas 60 detik.
+                  Layar onboarding pendaftaran & penentuan target screentime awal.
                 </p>
               </button>
 
-              {/* Skenario 2 */}
+              {/* Button 1: Dashboard */}
               <button
                 onClick={() => {
-                  triggerInterstitialIntervention();
-                }}
-                className="p-3.5 rounded-2xl bg-gradient-to-br from-red-950/40 to-gray-900 border border-red-500/40 hover:border-red-400 text-left transition-all group"
-              >
-                <div className="flex items-center justify-between text-xs font-bold text-red-400 mb-1">
-                  <span>2. Picu Interstitial Lock</span>
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-                <p className="text-[11px] text-gray-300">
-                  Kunci layar HP dan buka Split-Screen: Panduan Video (atas) & Kamera Deteksi (bawah).
-                </p>
-              </button>
-
-              {/* Skenario 3 */}
-              <button
-                onClick={() => {
-                  setAppMode('interstitial');
-                  handleCompleteWorkout();
-                }}
-                className="p-3.5 rounded-2xl bg-gradient-to-br from-green-950/40 to-gray-900 border border-green-500/40 hover:border-green-400 text-left transition-all group"
-              >
-                <div className="flex items-center justify-between text-xs font-bold text-emerald-400 mb-1">
-                  <span>3. Selesaikan & Dapat Koin</span>
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-                <p className="text-[11px] text-gray-300">
-                  Simulasikan gerakan selesai validasi AI, confetti meledak, koin bertambah +25!
-                </p>
-              </button>
-
-              {/* Skenario 4 */}
-              <button
-                onClick={() => {
-                  setAppMode('rewards');
+                  setIsLoggedIn(true);
+                  setActiveTab('dashboard');
+                  setProfileSubView('main');
                   if (soundEnabled) playSound('click');
                 }}
-                className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 to-gray-900 border border-amber-500/40 hover:border-amber-400 text-left transition-all group"
+                className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  activeTab === 'dashboard' && isLoggedIn && profileSubView !== 'auth'
+                    ? 'bg-[#152010] border-[#ccff00] text-white shadow-md'
+                    : 'bg-[#131926] border-gray-800 hover:border-gray-700 text-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-[#ccff00] mb-1">
+                  <span>2. Dashboard Metrik Harian</span>
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+                <p className="text-[11px] text-gray-300">
+                  Ringkasan 68% Daily Goal, calories, steps, streak, dan grafik mingguan.
+                </p>
+              </button>
+
+              {/* Button 2: Activity Tracking */}
+              <button
+                onClick={() => {
+                  setIsLoggedIn(true);
+                  setActiveTab('tracking');
+                  setProfileSubView('main');
+                  if (soundEnabled) playSound('click');
+                }}
+                className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  activeTab === 'tracking'
+                    ? 'bg-[#152010] border-[#ccff00] text-white shadow-md'
+                    : 'bg-[#131926] border-gray-800 hover:border-gray-700 text-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-[#ccff00] mb-1">
+                  <span>3. Tracking Olahraga & Sosmed</span>
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+                <p className="text-[11px] text-gray-300">
+                  Grafik bar jam-jaman screen time sosmed dan audit log sesi olahraga hari ini.
+                </p>
+              </button>
+
+              {/* Button 3: Simulasi Notifikasi Masuk */}
+              <button
+                onClick={triggerExternalSocialNotification}
+                className="p-3.5 rounded-2xl bg-gradient-to-br from-pink-950/40 to-[#131926] border border-pink-500/40 hover:border-pink-400 text-left transition-all group"
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-pink-400 mb-1">
+                  <span>4. Simulasi Alarm Notifikasi Sosmed</span>
+                  <BellRing className="w-4 h-4 group-hover:scale-110 transition-transform animate-pulse" />
+                </div>
+                <p className="text-[11px] text-gray-300">
+                  Munculkan notifikasi pop-up dari luar (TikTok) pemicu micro-workout!
+                </p>
+              </button>
+
+              {/* Button 4: MoveIt Challenge */}
+              <button
+                onClick={() => {
+                  setIsLoggedIn(true);
+                  setActiveTab('moveit');
+                  setWorkoutSecondsLeft(30);
+                  setRepCount(23);
+                  setWorkoutCompleted(false);
+                  if (soundEnabled) playSound('click');
+                }}
+                className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  activeTab === 'moveit'
+                    ? 'bg-[#152010] border-[#ccff00] text-white shadow-md'
+                    : 'bg-[#131926] border-gray-800 hover:border-gray-700 text-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-[#ccff00] mb-1">
+                  <span>5. Split-Screen Workout Challenge</span>
+                  <Zap className="w-4 h-4 fill-[#ccff00]" />
+                </div>
+                <p className="text-[11px] text-gray-300">
+                  Layar terbelah: Panduan gerakan (video/gambar) di atas, Kamera fisik validasi di bawah!
+                </p>
+              </button>
+
+              {/* Button 5: MoveIt Pro AI Coach (Fitur Premium) */}
+              <button
+                onClick={() => {
+                  setIsLoggedIn(true);
+                  setActiveTab('profile');
+                  setProfileSubView('pro_coach');
+                  if (soundEnabled) playSound('click');
+                }}
+                className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  profileSubView === 'pro_coach'
+                    ? 'bg-amber-950/30 border-amber-400 text-white shadow-md'
+                    : 'bg-[#131926] border-gray-800 hover:border-amber-400/50 text-gray-300'
+                }`}
               >
                 <div className="flex items-center justify-between text-xs font-bold text-amber-400 mb-1">
-                  <span>4. Klaim Voucher QR</span>
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <span className="flex items-center gap-1.5">
+                    <Crown className="w-3.5 h-3.5" />
+                    6. MoveIt Pro (AI Coach & Analytics)
+                  </span>
+                  <ChevronRight className="w-4 h-4" />
                 </div>
                 <p className="text-[11px] text-gray-300">
-                  Buka katalog marketplace koin dan cetak voucher digital dengan barcode/QR instan.
+                  Fitur Premium: Deep correlation analytics + Live AI Coach Chatbot!
                 </p>
               </button>
+
+              {/* Button 6: Help & Support */}
+              <button
+                onClick={() => {
+                  setIsLoggedIn(true);
+                  setActiveTab('profile');
+                  setProfileSubView('help_support');
+                  if (soundEnabled) playSound('click');
+                }}
+                className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  profileSubView === 'help_support'
+                    ? 'bg-[#152010] border-[#ccff00] text-white shadow-md'
+                    : 'bg-[#131926] border-gray-800 hover:border-gray-700 text-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-gray-300 mb-1">
+                  <span>❓ 7. Help & Support</span>
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  Bantuan, FAQ seputar kamera AI, dan kontak tim dukungan.
+                </p>
+              </button>
+
+              {/* Button 7: Focus & Notifications (Threshold Dropbox & Add Apps) */}
+              <button
+                onClick={() => {
+                  setIsLoggedIn(true);
+                  setActiveTab('profile');
+                  setProfileSubView('focus_notifications');
+                  if (soundEnabled) playSound('click');
+                }}
+                className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  profileSubView === 'focus_notifications'
+                    ? 'bg-[#152010] border-[#ccff00] text-white shadow-md'
+                    : 'bg-[#131926] border-gray-800 hover:border-[#ccff00]/40 text-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-[#ccff00] mb-1">
+                  <span className="flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5" />
+                    8. Focus & Notifications (Threshold & Apps)
+                  </span>
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+                <p className="text-[11px] text-gray-300">
+                  Uji dropbox durasi threshold (15-120m) & tambah aplikasi baru (Threads, Telegram, dll).
+                </p>
+              </button>
+
+              {/* Button 8: Sign Out */}
+              <button
+                onClick={handleSignOut}
+                className="p-3.5 rounded-2xl bg-red-950/30 border border-red-500/40 hover:border-red-400 text-left transition-all"
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-red-400 mb-1">
+                  <span>🚪 9. Sign Out (Keluar)</span>
+                  <LogOut className="w-4 h-4" />
+                </div>
+                <p className="text-[11px] text-gray-300">
+                  Keluar dari akun dan uji kembali alur onboarding pendaftaran.
+                </p>
+              </button>
+
             </div>
           </div>
 
-          {/* SIMULATOR CONFIGURATION & WEBCAM SWITCHER */}
-          <div className="p-6 rounded-3xl bg-[#0f172a] border border-gray-800 shadow-xl space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Camera className="w-4 h-4 text-emerald-400" />
-              Pengaturan Kamera & Model Handphone
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              
-              {/* Camera Switcher */}
-              <div className="p-3 rounded-xl bg-gray-900 border border-gray-800 space-y-2">
-                <span className="text-gray-400 block font-medium">Input Kamera Validasi:</span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setUseRealWebcam(false)}
-                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-colors ${
-                      !useRealWebcam ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-300'
-                    }`}
-                  >
-                    AI Pose Virtual
-                  </button>
-                  <button
-                    onClick={() => setUseRealWebcam(true)}
-                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-colors ${
-                      useRealWebcam ? 'bg-green-500 text-black' : 'bg-gray-800 text-gray-300'
-                    }`}
-                  >
-                    Webcam Fisik
-                  </button>
-                </div>
-                <span className="text-[10px] text-gray-500 block">
-                  {useRealWebcam ? 'Menggunakan kamera laptop langsung via WebRTC' : 'Menggunakan skeleton wireframe tracking interaktif'}
-                </span>
-              </div>
-
-              {/* Phone Model Switcher */}
-              <div className="p-3 rounded-xl bg-gray-900 border border-gray-800 space-y-2">
-                <span className="text-gray-400 block font-medium">Gaya Frame Handphone:</span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPhoneModel('iphone')}
-                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-colors ${
-                      phoneModel === 'iphone' ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300'
-                    }`}
-                  >
-                    iPhone 16 Pro
-                  </button>
-                  <button
-                    onClick={() => setPhoneModel('android')}
-                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-colors ${
-                      phoneModel === 'android' ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300'
-                    }`}
-                  >
-                    Android S24
-                  </button>
-                </div>
-                <span className="text-[10px] text-gray-500 block">
-                  Frame disesuaikan dengan notch/dynamic island
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* JUDGES / EVALUATOR CHEAT-SHEET */}
-          <div className="p-6 rounded-3xl bg-gradient-to-br from-gray-900 via-[#101827] to-[#0a1220] border border-gray-800 text-xs space-y-3">
-            <div className="flex items-center gap-2 text-white font-bold text-sm">
-              <ShieldCheck className="w-4 h-4 text-green-400" />
-              <span>Arsitektur & Keunggulan Produk untuk Presentasi</span>
+          {/* MoveIt Media & Live Camera Settings */}
+          <div className="p-5 rounded-3xl bg-[#0f1420] border border-gray-800 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-white flex items-center gap-2">
+                <Camera className="w-4 h-4 text-[#ccff00]" />
+                Validasi Kamera & Simulasi Sesi MoveIt (1 Jam)
+              </h3>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/30 font-bold">
+                {isWebcamActive ? '● Kamera Aktif' : '○ Kamera Siap'}
+              </span>
             </div>
 
-            <div className="space-y-2 text-gray-300 leading-relaxed">
-              <div className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center font-bold text-[10px] flex-shrink-0 mt-0.5">1</span>
-                <div>
-                  <strong className="text-white">Bukan Sekadar Pembatas Pasif:</strong> Berbeda dari Digital Wellbeing biasa yang mudah di-bypass atau diabaikan, MOVE2EARN mengalihkan scrolling pasif menjadi micro-workout aktif dan memberikan reward koin nyata.
-                </div>
+            {/* Session Simulation Switcher */}
+            <div className="space-y-2">
+              <div className="text-[11px] font-semibold text-gray-300">
+                Pilih Sesi Blocking Time (Folder: <code className="text-[#ccff00] font-mono">components/media</code>):
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  onClick={() => {
+                    handleSelectMoveItSession(1);
+                    setActiveTab('moveit');
+                    if (soundEnabled) playSound('click');
+                  }}
+                  className={`p-2.5 rounded-xl font-bold border text-left transition-all ${
+                    moveItSessionNumber === 1
+                      ? 'bg-[#152010] border-[#ccff00] text-white shadow'
+                      : 'bg-gray-800/80 border-gray-700 text-gray-300 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-[#ccff00] font-bold text-[11px]">
+                    <span>🎬 Sesi 1 (Awal)</span>
+                    <span className="text-[9px] bg-black/60 px-1.5 py-0.5 rounded">Video</span>
+                  </div>
+                  <div className="text-[10px] text-gray-300 mt-1 font-mono truncate">
+                    videomoveit.mp4
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    handleSelectMoveItSession(moveItSessionNumber === 1 ? 2 : moveItSessionNumber + 1);
+                    setActiveTab('moveit');
+                    if (soundEnabled) playSound('click');
+                  }}
+                  className={`p-2.5 rounded-xl font-bold border text-left transition-all ${
+                    moveItSessionNumber > 1
+                      ? 'bg-[#152010] border-[#ccff00] text-white shadow'
+                      : 'bg-gray-800/80 border-gray-700 text-gray-300 hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-blue-400 font-bold text-[11px]">
+                    <span>🖼️ Sesi +1 Jam</span>
+                    <span className="text-[9px] bg-black/60 px-1.5 py-0.5 rounded text-blue-300">Random Foto</span>
+                  </div>
+                  <div className="text-[10px] text-gray-300 mt-1 font-mono truncate">
+                    {currentMoveItMedia.type === 'image' ? currentMoveItMedia.filename : 'plank.jpeg / acak'}
+                  </div>
+                </button>
               </div>
 
-              <div className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center font-bold text-[10px] flex-shrink-0 mt-0.5">2</span>
-                <div>
-                  <strong className="text-white">Split-Screen Interstitial:</strong> Menggunakan inovasi tampilan ganda vertikal di mana video tutorial instruktur diputar di atas, sementara validasi gerakan kamera berlangsung di bawah.
-                </div>
+              <div className="p-2.5 rounded-xl bg-black/40 border border-gray-800/80 text-[10px] text-gray-400 space-y-1">
+                <p>
+                  <strong className="text-white">Alur Sesi:</strong> Sesi 1 memprioritaskan video (<code className="text-[#ccff00]">videomoveit.mp4</code>). Sesi 1 jam kemudian memilih foto secara acak.
+                </p>
+                <p className="text-gray-400">
+                  Foto baru yang Anda tambahkan ke folder <code className="text-gray-300 font-mono">components/media/</code> otomatis diundi secara dinamis!
+                </p>
               </div>
+            </div>
 
-              <div className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center font-bold text-[10px] flex-shrink-0 mt-0.5">3</span>
-                <div>
-                  <strong className="text-white">Ekonomi Koin & Voucher Terintegrasi:</strong> Koin yang didapat disimpan secara aman di Supabase (dengan proteksi idempotensi agar tidak bisa di-cheat) dan dapat langsung ditukar ke voucher digital mitra lokal.
-                </div>
-              </div>
+            {/* Camera Control button */}
+            <div className="pt-1 border-t border-gray-800/60 flex items-center justify-between">
+              <span className="text-[11px] text-gray-400">Fokus Kamera Fisik (No AI Skeleton):</span>
+              <button
+                onClick={requestWebcamAccess}
+                className="px-3 py-1.5 bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-[11px] rounded-lg shadow transition-colors flex items-center gap-1.5"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>{isWebcamActive ? 'Hubungkan Ulang Kamera' : 'Buka Akses Kamera'}</span>
+              </button>
             </div>
           </div>
 

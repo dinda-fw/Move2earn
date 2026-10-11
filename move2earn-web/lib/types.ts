@@ -101,3 +101,168 @@ export interface DashboardSummary {
     duration_seconds: number;
   }[];
 }
+
+export interface ActivitySummary {
+  daily_goal_minutes: number;
+  active_minutes: number;
+  daily_goal_percent: number;
+  screen_time_saved_minutes: number;
+  calories_burned: number;
+  steps_count: number;
+  workout_sessions_count: number;
+  day_streak: number;
+  this_week: {
+    day: string;
+    minutes: number;
+    active?: boolean;
+  }[];
+  today_hourly_screentime: {
+    hour: string;
+    minutes: number;
+    active?: boolean;
+  }[];
+  recent_sessions: {
+    id: string;
+    title: string;
+    duration_minutes: number;
+    calories: number;
+    coins: number;
+    time: string;
+    status: string;
+  }[];
+}
+
+// =============================================================================
+// WORKOUT PLANNER & EXERCISE LIBRARY TYPES
+// =============================================================================
+
+export type EquipmentType = 
+  | 'bodyweight'
+  | 'dumbbell'
+  | 'barbell'
+  | 'kettlebell'
+  | 'resistance_band'
+  | 'weight_plates'
+  | 'pull_up_bar'
+  | 'bench'
+  | 'gym_machine'
+  | 'yoga_mat'
+  | 'jump_rope';
+
+export type MuscleGroup = 
+  | 'chest'
+  | 'back'
+  | 'shoulders'
+  | 'biceps'
+  | 'triceps'
+  | 'forearms'
+  | 'abs'
+  | 'glutes'
+  | 'quadriceps'
+  | 'hamstrings'
+  | 'calves'
+  | 'full_body';
+
+export type ExerciseDifficulty = 'beginner' | 'intermediate' | 'advanced';
+
+export type WorkoutCategory = 
+  | 'strength' 
+  | 'cardio' 
+  | 'hiit' 
+  | 'mobility' 
+  | 'stretching' 
+  | 'core' 
+  | 'full_body' 
+  | 'upper_body' 
+  | 'lower_body';
+
+export interface Exercise {
+  id: string;
+  slug: string;
+  name: string;
+  name_en?: string;
+  description: string;
+  introduction?: string;
+  category: WorkoutCategory;
+  primary_muscle: MuscleGroup;
+  secondary_muscles: MuscleGroup[];
+  equipment: EquipmentType[];
+  difficulty: ExerciseDifficulty;
+  instructions: string[];
+  recommended_sets: number;
+  recommended_reps: string;
+  default_duration_seconds?: number;
+  default_rest_seconds: number;
+  safety_notes?: string;
+  easier_alternative?: string;
+  harder_alternative?: string;
+  location: ('home' | 'gym' | 'outdoor')[];
+  illustration_type?: string;
+  full_video_url?: string;
+  full_video_image_url?: string;
+}
+
+export interface WorkoutPlanExercise {
+  id: string;
+  exercise: Exercise;
+  sets: number;
+  reps_or_duration: string;
+  duration_seconds?: number;
+  rest_seconds: number;
+}
+
+export interface WorkoutPlan {
+  id: string;
+  user_id?: string;
+  title: string;
+  description: string;
+  difficulty: ExerciseDifficulty;
+  category: WorkoutCategory | 'mixed';
+  target_muscles: MuscleGroup[];
+  equipment: EquipmentType[];
+  estimated_duration_minutes: number;
+  estimated_calories: number;
+  coin_reward: number;
+  exercises: WorkoutPlanExercise[];
+  is_custom?: boolean;
+  is_featured?: boolean;
+  is_favorite?: boolean;
+  location?: 'home' | 'gym' | 'outdoor';
+  created_at?: string;
+}
+
+export interface WorkoutBuilderPreferences {
+  equipment: EquipmentType[];
+  target_muscles: MuscleGroup[];
+  duration_minutes: number; // 5, 10, 15, 20, 30, 45, 60
+  difficulty: ExerciseDifficulty;
+  category: WorkoutCategory | 'mixed';
+  location: 'home' | 'gym' | 'outdoor';
+  intensity: 'low' | 'moderate' | 'high';
+  goal: 'stay_active' | 'build_strength' | 'improve_endurance' | 'flexibility' | 'general_fitness';
+  daily_energy?: 'light' | 'normal' | 'extra_energy';
+}
+
+export interface SavedWorkout {
+  id: string;
+  user_id: string;
+  plan: WorkoutPlan;
+  is_favorite: boolean;
+  saved_at: string;
+}
+
+export interface CompletedWorkoutSession {
+  id: string;
+  user_id: string;
+  plan_id?: string;
+  plan_title: string;
+  started_at: string;
+  completed_at: string;
+  duration_seconds: number;
+  exercises_completed: number;
+  total_sets_completed: number;
+  coins_awarded: number;
+  target_muscles: MuscleGroup[];
+  idempotency_key?: string;
+}
+

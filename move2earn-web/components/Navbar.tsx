@@ -13,6 +13,7 @@ import {
   TicketCheck, 
   ShieldAlert, 
   Smartphone,
+  Dumbbell,
   Menu,
   X
 } from 'lucide-react';
@@ -40,6 +41,7 @@ export default function Navbar() {
   const navLinks = [
     { href: '/demo', label: '📱 Demo HP', icon: Smartphone, highlight: true },
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/workout', label: 'Workout', icon: Dumbbell },
     { href: '/history', label: 'History', icon: History },
     { href: '/wallet', label: 'Wallet', icon: Wallet },
     { href: '/rewards', label: 'Rewards', icon: Gift },
