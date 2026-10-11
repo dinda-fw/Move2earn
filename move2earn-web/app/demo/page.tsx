@@ -90,6 +90,7 @@ import {
   MoveItMediaItem, 
   MoveItMediaRegistry 
 } from '@/lib/moveitMedia';
+import { sendCoachChatMessage, CoachUserContext } from '@/lib/gemini';
 
 // ==============================================================
 // OFFICIAL & AESTHETIC SOCIAL MEDIA APP LOGOS
@@ -283,6 +284,8 @@ interface ChatMessage {
   sender: 'coach' | 'user';
   text: string;
   time: string;
+  isLiveAi?: boolean;
+  modelUsed?: string;
 }
 
 export default function MobileDemoPage() {
@@ -838,8 +841,8 @@ export default function MobileDemoPage() {
     setActiveGuidedPlan(singlePlan);
   };
 
-  // Handle AI Coach Chatbot Query
-  const handleSendMessage = (textToSend?: string) => {
+  // Handle AI Coach Chatbot Query with Google Gemini AI Integration
+  const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputMessage;
     if (!text.trim()) return;
 
@@ -855,33 +858,52 @@ export default function MobileDemoPage() {
     if (!textToSend) setInputMessage('');
     setIsCoachTyping(true);
 
-    // AI Coach Intelligent Response Simulation grounded on user data
-    setTimeout(() => {
-      let coachReply = '';
-      const lower = text.toLowerCase();
+    try {
+      const context: CoachUserContext = {
+        userName,
+        fitnessLevel,
+        dailyGoalTarget,
+        activeMin,
+        burnedCalories: activity?.calories_burned ?? 185,
+        dayStreak: activity?.day_streak ?? 7,
+        walletBalance,
+        savedScreenTime: savedDisplay,
+        monitoredApps: monitoredApps.map((a) => ({
+          name: a.name,
+          usedMin: getAppUsageMinutes(a.id),
+          thresholdMin: a.thresholdMinutes,
+        })),
+      };
 
-      if (lower.includes('korelasi') || lower.includes('analisis') || lower.includes('performa')) {
-        coachReply = `Berdasarkan data minggu ini: Hari Kamis kemarin kamu hanya scroll sosmed 45 menit dan workout 35 menit penuh (+35% efisiensi kalori!). Namun pada jam 12:00–15:00 hari ini, screen time kamu naik ke 28 menit. Saran saya: luangkan 3 menit Jumping Jacks sebelum makan siang agar metabolisme tetap tinggi!`;
-      } else if (lower.includes('leher') || lower.includes('pegal') || lower.includes('postur')) {
-        coachReply = `Posisi menunduk saat menatap layar HP memberi beban hingga 27 kg pada leher! Saya sarankan lakukan gerakan 'Chin Tucks' dan 'Upper Chest Stretch' selama 3 menit. Sesi ini otomatis memberimu +15 Move Coins di MoveIt!`;
-      } else if (lower.includes('malam') || lower.includes('tidur') || lower.includes('stop scroll')) {
-        coachReply = `Doomscrolling malam hari menurunkan hormon melatonin. Di menu Focus & Notifications, aktifkan 'Quiet Hours' mulai pukul 22:00. Jika kamu tetap tergoda membuka TikTok, MoveIt akan mengunci layar dengan 5 menit deep breathing & core plank!`;
-      } else {
-        coachReply = `Luar biasa, ${userName}! Konsistensi streak 7 harimu sudah menghasilkan 320 Move Coins. Kamu hanya butuh 11 menit latihan lagi untuk menuntaskan 100% Daily Goal hari ini. Ayo selesaikan tantangan squat berikutnya!`;
-      }
+      const result = await sendCoachChatMessage(text, chatMessages, context);
 
       setChatMessages((prev) => [
         ...prev,
         {
           id: `coach-${Date.now()}`,
           sender: 'coach',
-          text: coachReply,
-          time: currentTime
+          text: result.reply,
+          time: currentTime,
+          isLiveAi: result.isLiveAi,
+          modelUsed: result.modelUsed,
         }
       ]);
-      setIsCoachTyping(false);
       if (soundEnabled) playSound('coin');
-    }, 900);
+    } catch (err) {
+      console.error('Failed to get coach reply:', err);
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: `coach-${Date.now()}`,
+          sender: 'coach',
+          text: `Halo ${userName}, tetap semangat bergerak ya! Jika terjadi kendala koneksi, pastikan API key Gemini telah disiapkan di file .env.local.`,
+          time: currentTime,
+          isLiveAi: false,
+        }
+      ]);
+    } finally {
+      setIsCoachTyping(false);
+    }
   };
 
   const handleReset = () => {
@@ -2862,9 +2884,17 @@ export default function MobileDemoPage() {
                               <div className="w-6 h-6 rounded-full bg-[#ccff00] text-black flex items-center justify-center font-bold">
                                 <Bot className="w-3.5 h-3.5" />
                               </div>
-                              <span className="font-bold text-white">Coach Max AI</span>
+                              <div>
+                                <span className="font-bold text-white block leading-tight">Coach Max AI</span>
+                                <span className="text-[8px] text-gray-400">MoveIt Pro Personal Trainer</span>
+                              </div>
                             </div>
-                            <span className="text-[9px] text-[#ccff00] font-mono">Konsultasi Aktif</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[8px] px-2 py-0.5 rounded-full bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 text-blue-300 border border-blue-500/40 font-mono font-bold flex items-center gap-1">
+                                <Sparkles className="w-2.5 h-2.5 text-blue-400" />
+                                <span>Powered by Gemini</span>
+                              </span>
+                            </div>
                           </div>
 
                           {/* Message bubble stream */}
@@ -2882,15 +2912,21 @@ export default function MobileDemoPage() {
                                   }`}
                                 >
                                   {msg.text}
+                                  {msg.sender === 'coach' && msg.isLiveAi && (
+                                    <div className="mt-1 pt-1 border-t border-white/10 flex items-center gap-1 text-[8px] text-blue-300 font-mono">
+                                      <Sparkles className="w-2.5 h-2.5" />
+                                      <span>Google Gemini AI</span>
+                                    </div>
+                                  )}
                                 </div>
                                 <span className="text-[8px] text-gray-500 mt-0.5 px-1 font-mono">{msg.time}</span>
                               </div>
                             ))}
 
                             {isCoachTyping && (
-                              <div className="p-2 rounded-xl bg-[#18202d] text-[10px] text-gray-400 italic inline-flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#ccff00] animate-bounce" />
-                                Coach Max sedang mengetik rekomendasi...
+                              <div className="p-2 rounded-xl bg-[#18202d] text-[10px] text-blue-300 italic inline-flex items-center gap-1.5 border border-blue-500/30">
+                                <Sparkles className="w-3 h-3 text-blue-400 animate-spin" />
+                                Coach Max (Gemini AI) sedang memproses jawaban...
                               </div>
                             )}
                           </div>
