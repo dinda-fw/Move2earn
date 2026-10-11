@@ -57,25 +57,25 @@ INSERT INTO public.rewards (id, title, description, category, image_url, coin_pr
 VALUES
 (
     '22222222-2222-2222-2222-222222222201',
-    'GoPay / OVO Rp 25.000 Balance',
-    'Saldo digital wallet Rp 25.000 langsung ditransfer atau gunakan kode voucher demo.',
+    'GoPay / OVO Rp 5.000 Balance',
+    'Saldo digital wallet Rp 5.000 langsung ditransfer atau gunakan kode voucher demo.',
     'digital_wallet',
     'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&q=80',
     50,
     25,
-    'M2E-GOPAY25K-DEMO',
+    'M2E-GOPAY5K',
     TRUE,
     TRUE
 ),
 (
     '22222222-2222-2222-2222-222222222202',
-    'Tokopedia Voucher Rp 50.000',
-    'Potongan belanja Rp 50.000 tanpa minimum transaksi untuk produk kesehatan & olahraga.',
+    'Tokopedia Voucher Rp 5.000',
+    'Potongan belanja Rp 5.000 tanpa minimum transaksi untuk produk kesehatan & olahraga.',
     'voucher',
     'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=600&q=80',
     90,
     15,
-    'M2E-TKPD50K-DEMO',
+    'M2E-TKPD5K',
     TRUE,
     TRUE
 ),
@@ -87,7 +87,7 @@ VALUES
     'https://images.unsplash.com/photo-1579758629938-03607ccdbaba?auto=format&fit=crop&w=600&q=80',
     35,
     50,
-    'M2E-PROTEIN-DEMO',
+    'M2E-PROTEIN',
     TRUE,
     TRUE
 ),
@@ -99,7 +99,7 @@ VALUES
     'https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=600&q=80',
     120,
     10,
-    'M2E-SHAKER-DEMO',
+    'M2E-SHAKER',
     TRUE,
     TRUE
 ),
@@ -111,7 +111,7 @@ VALUES
     'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?auto=format&fit=crop&w=600&q=80',
     75,
     20,
-    'M2E-SPOTIFY1M-DEMO',
+    'M2E-SPOTIFY1M',
     TRUE,
     TRUE
 )

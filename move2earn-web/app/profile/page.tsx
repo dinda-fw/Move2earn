@@ -2,29 +2,29 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  User, 
-  Mail, 
-  Lock, 
-  Phone, 
-  Dumbbell, 
-  Target, 
-  Flame, 
-  Coins, 
-  Clock, 
-  ShieldCheck, 
-  CheckCircle2, 
-  LogOut, 
-  Edit3, 
-  Save, 
-  Smartphone, 
-  Sparkles, 
-  Crown, 
-  Camera, 
-  Eye, 
-  EyeOff, 
-  TrendingUp, 
-  ChevronRight, 
+import {
+  User,
+  Mail,
+  Lock,
+  Phone,
+  Dumbbell,
+  Target,
+  Flame,
+  Coins,
+  Clock,
+  ShieldCheck,
+  CheckCircle2,
+  LogOut,
+  Edit3,
+  Save,
+  Smartphone,
+  Sparkles,
+  Crown,
+  Camera,
+  Eye,
+  EyeOff,
+  TrendingUp,
+  ChevronRight,
   ArrowRight,
   ShieldAlert,
   Zap,
@@ -41,8 +41,8 @@ export default function ProfilePage() {
 
   // Auth Tab (if logged out or switching accounts)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [authEmail, setAuthEmail] = useState('alex@move2earn.app');
-  const [authName, setAuthName] = useState('Alex Pratama');
+  const [authEmail, setAuthEmail] = useState('fajar@gmail.com');
+  const [authName, setAuthName] = useState('fajar');
   const [authPassword, setAuthPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -131,11 +131,11 @@ export default function ProfilePage() {
   };
 
   const handleQuickDemoLogin = () => {
-    setAuthEmail('alex@move2earn.app');
-    setAuthName('Alex Pratama');
-    const loggedIn = Move2EarnStore.loginUser('alex@move2earn.app', 'Alex Pratama');
+    setAuthEmail('fajar@gmail.com');
+    setAuthName('Fajar');
+    const loggedIn = Move2EarnStore.loginUser('fajar@gmail.com', 'Fajar');
     setProfile(loggedIn);
-    showNotification('Berhasil login cepat sebagai Alex Pratama!');
+    showNotification('Berhasil login cepat sebagai Fajar!');
   };
 
   const handleLogout = () => {
@@ -146,7 +146,7 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 animate-fadeIn">
-      
+
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-20 right-6 z-50 bg-[#162232] border border-[#ccff00] text-white px-4 py-3 rounded-2xl shadow-xl shadow-[#ccff00]/15 flex items-center gap-2.5 animate-bounce">
@@ -198,12 +198,12 @@ export default function ProfilePage() {
       {/* ==================================================================== */}
       {!profile.is_logged_in ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          
+
           {/* Left Column: Benefits & Value Proposition */}
           <div className="lg:col-span-7 space-y-6">
             <div className="p-8 rounded-3xl bg-gradient-to-br from-[#121927] to-[#0c121e] border border-gray-800 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-[#ccff00]/5 rounded-full blur-3xl pointer-events-none" />
-              
+
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ccff00]/10 border border-[#ccff00]/30 text-[#ccff00] text-xs font-bold font-mono mb-4">
                 <Sparkles className="w-3.5 h-3.5" />
                 MOVE2EARN ECOSYSTEM
@@ -212,7 +212,7 @@ export default function ProfilePage() {
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">
                 Ubah Kebiasaan Doom-Scrolling Jadi <span className="text-[#ccff00]">Kebugaran & Koin Hadiah</span>.
               </h2>
-              
+
               <p className="text-gray-300 text-sm mt-3 leading-relaxed">
                 Masuk ke akun Anda untuk menyinkronkan aktivitas screen time Android (TikTok, Instagram, YouTube) dengan micro-workout fisik berhadiah Move Coins.
               </p>
@@ -244,28 +244,26 @@ export default function ProfilePage() {
           {/* Right Column: Interactive Login / Register Form */}
           <div className="lg:col-span-5">
             <div className="p-6 sm:p-8 rounded-3xl bg-[#121622] border border-gray-800 shadow-2xl relative">
-              
+
               {/* Tab Selector */}
               <div className="p-1 rounded-2xl bg-black/60 border border-gray-800 grid grid-cols-2 text-center text-xs font-bold mb-6">
                 <button
                   type="button"
                   onClick={() => setAuthMode('login')}
-                  className={`py-2 rounded-xl transition-all ${
-                    authMode === 'login'
+                  className={`py-2 rounded-xl transition-all ${authMode === 'login'
                       ? 'bg-[#ccff00] text-black shadow-md shadow-[#ccff00]/20'
                       : 'text-gray-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   Masuk (Login)
                 </button>
                 <button
                   type="button"
                   onClick={() => setAuthMode('register')}
-                  className={`py-2 rounded-xl transition-all ${
-                    authMode === 'register'
+                  className={`py-2 rounded-xl transition-all ${authMode === 'register'
                       ? 'bg-[#ccff00] text-black shadow-md shadow-[#ccff00]/20'
                       : 'text-gray-400 hover:text-white'
-                  }`}
+                    }`}
                 >
                   Daftar Baru
                 </button>
@@ -284,7 +282,7 @@ export default function ProfilePage() {
                         type="text"
                         value={authName}
                         onChange={(e) => setAuthName(e.target.value)}
-                        placeholder="Contoh: Alex Pratama"
+                        placeholder="Contoh: fajar"
                         className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-black/50 border border-gray-700 text-white text-xs focus:outline-none focus:border-[#ccff00]"
                         required
                       />
@@ -302,7 +300,7 @@ export default function ProfilePage() {
                       type="email"
                       value={authEmail}
                       onChange={(e) => setAuthEmail(e.target.value)}
-                      placeholder="alex@move2earn.app"
+                      placeholder="fajar@gmail.com"
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-black/50 border border-gray-700 text-white text-xs focus:outline-none focus:border-[#ccff00]"
                       required
                     />
@@ -353,7 +351,7 @@ export default function ProfilePage() {
                   className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-950 to-gray-900 border border-emerald-500/50 hover:border-[#ccff00] text-[#ccff00] font-bold text-xs flex items-center justify-center gap-2 transition-all shadow"
                 >
                   <Zap className="w-4 h-4 fill-[#ccff00]" />
-                  <span>⚡ 1-Click Login Cepat (Alex Pratama)</span>
+                  <span>⚡ 1-Click Login Cepat ( Pratama)</span>
                 </button>
               </div>
 
@@ -366,11 +364,11 @@ export default function ProfilePage() {
         /* CASE B: USER IS LOGGED IN (DISPLAY & EDIT COMPLETE PROFILE) */
         /* ==================================================================== */
         <div className="space-y-8">
-          
+
           {/* PROFILE SUMMARY HERO BANNER */}
           <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#131a29] via-[#101622] to-[#0c111a] border border-gray-800 relative overflow-hidden">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              
+
               {/* Avatar + Main Info */}
               <div className="flex items-center gap-5">
                 <div className="relative">
@@ -405,11 +403,10 @@ export default function ProfilePage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setIsEditing(!isEditing)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
-                    isEditing
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${isEditing
                       ? 'bg-gray-800 text-gray-200 border border-gray-700'
                       : 'bg-[#ccff00] hover:bg-[#b8e600] text-black shadow-lg shadow-[#ccff00]/25'
-                  }`}
+                    }`}
                 >
                   <Edit3 className="w-4 h-4" />
                   <span>{isEditing ? 'Batal Edit' : 'Edit Profil & Target'}</span>
@@ -457,7 +454,7 @@ export default function ProfilePage() {
 
           {/* MAIN EDIT FORM / DETAILS */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
+
             {/* Left 8 Cols: Edit Profile Form */}
             <div className="lg:col-span-8 space-y-6">
               <div className="p-6 sm:p-8 rounded-3xl bg-[#121622] border border-gray-800 space-y-6">
@@ -482,7 +479,7 @@ export default function ProfilePage() {
                 </div>
 
                 <form onSubmit={handleSaveProfile} className="space-y-5">
-                  
+
                   {/* Row 1: Name & Email */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -621,7 +618,7 @@ export default function ProfilePage() {
 
             {/* Right 4 Cols: Privacy, Camera Settings & Quick Navigation */}
             <div className="lg:col-span-4 space-y-6">
-              
+
               {/* Privacy & Hardware Permissions */}
               <div className="p-6 rounded-3xl bg-[#121622] border border-gray-800 space-y-4">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">

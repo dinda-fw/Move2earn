@@ -62,25 +62,25 @@ const DEFAULT_CHALLENGES: Challenge[] = [
 const DEFAULT_REWARDS: Reward[] = [
   {
     id: '22222222-2222-2222-2222-222222222201',
-    title: 'GoPay / OVO Rp 25.000 Balance',
-    description: 'Saldo dompet digital Rp 25.000 langsung ditransfer atau gunakan kode voucher demo.',
+    title: 'GoPay / OVO Rp 5.000 Balance',
+    description: 'Saldo dompet digital Rp 25.000 langsung ditransfer atau gunakan kode voucher.',
     category: 'digital_wallet',
     image_url: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=600&q=80',
     coin_price: 50,
     stock: 24,
-    voucher_code: 'M2E-GOPAY25K-DEMO',
+    voucher_code: 'M2E-GOPAY5K',
     is_demo: true,
     is_active: true
   },
   {
     id: '22222222-2222-2222-2222-222222222202',
-    title: 'Tokopedia Voucher Rp 50.000',
-    description: 'Potongan belanja Rp 50.000 tanpa minimum transaksi untuk kategori kebutuhan harian.',
+    title: 'Tokopedia Voucher Rp 5.000',
+    description: 'Potongan belanja Rp 5.000 tanpa minimum transaksi untuk kategori kebutuhan harian.',
     category: 'voucher',
     image_url: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=600&q=80',
     coin_price: 90,
     stock: 14,
-    voucher_code: 'M2E-TKPD50K-DEMO',
+    voucher_code: 'M2E-TKPD5K',
     is_demo: true,
     is_active: true
   },
@@ -92,7 +92,7 @@ const DEFAULT_REWARDS: Reward[] = [
     image_url: 'https://images.unsplash.com/photo-1579758629938-03607ccdbaba?auto=format&fit=crop&w=600&q=80',
     coin_price: 35,
     stock: 48,
-    voucher_code: 'M2E-PROTEIN-DEMO',
+    voucher_code: 'M2E-PROTEIN',
     is_demo: true,
     is_active: true
   },
@@ -104,7 +104,7 @@ const DEFAULT_REWARDS: Reward[] = [
     image_url: 'https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=600&q=80',
     coin_price: 120,
     stock: 8,
-    voucher_code: 'M2E-SHAKER-DEMO',
+    voucher_code: 'M2E-SHAKER',
     is_demo: true,
     is_active: true
   },
@@ -116,7 +116,7 @@ const DEFAULT_REWARDS: Reward[] = [
     image_url: 'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?auto=format&fit=crop&w=600&q=80',
     coin_price: 75,
     stock: 19,
-    voucher_code: 'M2E-SPOTIFY1M-DEMO',
+    voucher_code: 'M2E-SPOTIFY1M',
     is_demo: true,
     is_active: true
   }
@@ -134,7 +134,7 @@ const DEFAULT_TRANSACTIONS: WalletTransaction[] = [
   },
   {
     id: 'tx-2',
-    user_id: 'demo-user-id',
+    user_id: 'user-id',
     amount: 30,
     transaction_type: 'earn',
     reference_type: 'workout_reward',
@@ -143,7 +143,7 @@ const DEFAULT_TRANSACTIONS: WalletTransaction[] = [
   },
   {
     id: 'tx-3',
-    user_id: 'demo-user-id',
+    user_id: 'user-id',
     amount: 20,
     transaction_type: 'earn',
     reference_type: 'workout_reward',
@@ -164,8 +164,8 @@ const STORAGE_KEYS = {
 
 const DEFAULT_USER_PROFILE: UserProfile = {
   id: 'usr-1',
-  name: 'Alex Pratama',
-  email: 'alex@move2earn.app',
+  name: 'Fajar',
+  email: 'fajardindawati@gmail.com',
   avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
   fitness_level: 'Beginner',
   daily_goal_minutes: 35,
@@ -489,7 +489,7 @@ export const Move2EarnStore = {
     const updated: UserProfile = {
       ...current,
       email,
-      name: name || current.name || 'Alex Pratama',
+      name: name || current.name || 'fajar',
       is_logged_in: true
     };
     setStored(STORAGE_KEYS.PROFILE, updated);

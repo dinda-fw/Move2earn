@@ -56,7 +56,11 @@ import {
   Shuffle,
   Layers,
   ExternalLink,
-  BarChart3
+  BarChart3,
+  Heart,
+  Bookmark,
+  Compass,
+  Home
 } from 'lucide-react';
 import { Move2EarnStore } from '@/lib/store';
 import { 
@@ -284,8 +288,8 @@ interface ChatMessage {
 export default function MobileDemoPage() {
   // Authentication & Personalization State
   const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [userName, setUserName] = useState('Alex');
-  const [userEmail, setUserEmail] = useState('alex@email.com');
+  const [userName, setUserName] = useState('Fajar');
+  const [userEmail, setUserEmail] = useState('Fajar@gmail.com');
   const [dailyGoalTarget, setDailyGoalTarget] = useState(35);
   const [fitnessLevel, setFitnessLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Beginner');
   const [selectedFocusApps, setSelectedFocusApps] = useState<string[]>(['TikTok', 'Instagram', 'YouTube']);
@@ -304,6 +308,15 @@ export default function MobileDemoPage() {
 
   // Incoming Notification Simulation (from external TikTok/Instagram)
   const [showExternalNotification, setShowExternalNotification] = useState(false);
+
+  // Instagram External App & Block Time Demo State
+  const [simulatedExternalApp, setSimulatedExternalApp] = useState<'instagram' | null>(null);
+  const [isBlockedFromInstagram, setIsBlockedFromInstagram] = useState(false);
+  const [instagramSeconds, setInstagramSeconds] = useState(3590); // 59m 50s -> auto triggers at 3600s (1 Jam)
+  const [isInstagramBlockingAnimation, setIsInstagramBlockingAnimation] = useState(false);
+  const [instagramUnlockedBanner, setInstagramUnlockedBanner] = useState(false);
+  const [isInstagramLiked, setIsInstagramLiked] = useState(false);
+  const [isInstagramBookmarked, setIsInstagramBookmarked] = useState(false);
 
   // Challenge / Interstitial Workout State & MoveIt Media (components/media)
   const [repCount, setRepCount] = useState(23);
@@ -632,13 +645,75 @@ export default function MobileDemoPage() {
     setShowExternalNotification(true);
   };
 
+  // Launch simulated Instagram app outside Move2Earn
+  const handleLaunchInstagramDemo = () => {
+    setSimulatedExternalApp('instagram');
+    setInstagramSeconds(3590); // 59m 50s
+    setIsInstagramBlockingAnimation(false);
+    setIsBlockedFromInstagram(false);
+    setInstagramUnlockedBanner(false);
+    if (soundEnabled) playSound('click');
+  };
+
+  // Trigger screen block when 1-hour screen time threshold is reached in Instagram
+  const handleTriggerInstagramBlock = () => {
+    if (soundEnabled) playSound('alert');
+    setIsInstagramBlockingAnimation(true);
+    setInstagramSeconds(3600);
+
+    setTimeout(() => {
+      setSimulatedExternalApp(null);
+      setActiveTab('moveit');
+      setIsBlockedFromInstagram(true);
+      setIsInstagramBlockingAnimation(false);
+      setWorkoutCompleted(false);
+      setWorkoutSecondsLeft(30);
+      setRepCount(0);
+      if (moveItGuideVideoRef.current) {
+        moveItGuideVideoRef.current.currentTime = 0;
+        moveItGuideVideoRef.current.pause();
+      }
+    }, 1500);
+  };
+
+  // Unlock screen and return to Instagram after MoveIt workout is finished
+  const handleUnlockAndReturnToInstagram = () => {
+    if (soundEnabled) playSound('coin');
+    setSimulatedExternalApp('instagram');
+    setIsBlockedFromInstagram(false);
+    setInstagramUnlockedBanner(true);
+    setInstagramSeconds(1800); // Reset to 30 mins remaining
+  };
+
+  // Real-time ticking timer for Instagram simulation (ticks to 3600s = 1 hour)
+  useEffect(() => {
+    if (simulatedExternalApp !== 'instagram' || isInstagramBlockingAnimation) return;
+
+    const interval = setInterval(() => {
+      setInstagramSeconds((prev) => {
+        const next = prev + 1;
+        if (next >= 3600) {
+          handleTriggerInstagramBlock();
+          return 3600;
+        }
+        return next;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [simulatedExternalApp, isInstagramBlockingAnimation]);
+
   // Click External Push Notification -> Opens MoveIt Challenge
   const handleOpenPromptFromNotification = () => {
     setShowExternalNotification(false);
     setActiveTab('moveit');
     setWorkoutSecondsLeft(30);
-    setRepCount(23);
+    setRepCount(0);
     setWorkoutCompleted(false);
+    if (moveItGuideVideoRef.current) {
+      moveItGuideVideoRef.current.currentTime = 0;
+      moveItGuideVideoRef.current.pause();
+    }
   };
 
   // Redeem Reward (Synchronized with Store)
@@ -816,9 +891,14 @@ export default function MobileDemoPage() {
     setProfileSubView('main');
     setShowExternalNotification(false);
     setWorkoutCompleted(false);
-    setRepCount(23);
+    setRepCount(0);
     setWorkoutSecondsLeft(30);
     setRedeemedVoucher(null);
+    setSimulatedExternalApp(null);
+    setIsBlockedFromInstagram(false);
+    setIsInstagramBlockingAnimation(false);
+    setInstagramUnlockedBanner(false);
+    setInstagramSeconds(3590);
   };
 
   const handleSignOut = () => {
@@ -867,6 +947,16 @@ export default function MobileDemoPage() {
               title="Reset Demo"
             >
               <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+            </button>
+
+            {/* Tombol Demo Block Time Instagram */}
+            <button
+              onClick={handleLaunchInstagramDemo}
+              className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-pink-600 via-rose-500 to-purple-600 hover:opacity-90 text-white font-extrabold text-[11px] flex items-center gap-1.5 shadow-md shadow-pink-500/25 transition-all"
+              title="Buka simulasi Instagram di luar Move2Earn dan uji kondisi block time 1 jam"
+            >
+              <InstagramLogo className="w-3.5 h-3.5" />
+              <span>Demo Block Time (IG 1 Jam)</span>
             </button>
 
             <Link
@@ -937,6 +1027,14 @@ export default function MobileDemoPage() {
             >
               <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
               <span>Reset Demo</span>
+            </button>
+
+            <button
+              onClick={handleLaunchInstagramDemo}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-pink-600 via-rose-500 to-purple-600 hover:opacity-90 text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-pink-500/20 transition-all"
+            >
+              <InstagramLogo className="w-4 h-4" />
+              <span>Demo Block Time (Instagram 1 Jam)</span>
             </button>
 
             <Link
@@ -1018,6 +1116,283 @@ export default function MobileDemoPage() {
                       Mulai Workout Sekarang <ArrowRight className="w-3 h-3" />
                     </span>
                   </div>
+                </div>
+              )}
+
+              {/* ============================================================== */}
+              {/* EXTERNAL APP SIMULATOR: INSTAGRAM (DI LUAR APK MOBILE MOVE2EARN) */}
+              {/* ============================================================== */}
+              {simulatedExternalApp === 'instagram' && (
+                <div className="absolute inset-0 z-20 flex flex-col bg-[#050505] text-white pt-10 select-none overflow-hidden">
+                  
+                  {/* Instagram Top Navigation Bar */}
+                  <div className="px-4 py-2 flex items-center justify-between border-b border-gray-900 bg-black/90 backdrop-blur-md shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-serif italic text-lg font-bold tracking-tight bg-gradient-to-r from-white via-pink-100 to-rose-200 bg-clip-text text-transparent">
+                        Instagram
+                      </span>
+                      <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 font-semibold">
+                        Luar APK Move2Earn
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="relative cursor-pointer">
+                        <Heart className="w-5 h-5 text-gray-200 hover:text-white" />
+                        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-pink-500" />
+                      </div>
+                      <div className="relative cursor-pointer">
+                        <Send className="w-4 h-4 text-gray-200 hover:text-white -rotate-12" />
+                      </div>
+                      <button
+                        onClick={() => setSimulatedExternalApp(null)}
+                        className="text-[9px] px-2 py-0.5 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700 transition-colors"
+                        title="Tutup Instagram dan kembali ke Move2Earn"
+                      >
+                        Buka Move2Earn
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ACTIVE MOVE2EARN SHIELD MONITOR BANNER (FLOATING / STICKY) */}
+                  <div className="px-3 py-2 bg-gradient-to-r from-[#181126] via-[#10141f] to-[#121c10] border-b border-[#ccff00]/30 shadow-md shrink-0">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-[#ccff00] animate-ping" />
+                        <span className="text-[10px] font-black text-white tracking-wider">
+                          MOVE<span className="text-[#ccff00]">2EARN</span> ANTI-SEDENTARY SHIELD
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-[#ccff00] bg-black/60 px-1.5 py-0.5 rounded border border-[#ccff00]/30">
+                        {Math.floor(instagramSeconds / 60)}m {String(instagramSeconds % 60).padStart(2, '0')}s / 60m
+                      </span>
+                    </div>
+
+                    {/* Progress Bar Towards 1 Hour (3600 seconds) */}
+                    <div className="w-full bg-gray-900 rounded-full h-1.5 overflow-hidden border border-gray-800">
+                      <div 
+                        className="bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 h-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, (instagramSeconds / 3600) * 100)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[9px] mt-1.5">
+                      <span className="text-gray-300 flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5 text-amber-400" />
+                        {instagramSeconds >= 3600 ? (
+                          <strong className="text-red-400 animate-pulse">1 Jam Tercapai! Memblokir layar...</strong>
+                        ) : (
+                          <span>Sisa <strong>{Math.max(0, 3600 - instagramSeconds)} detik</strong> menuju blokir otomatis</span>
+                        )}
+                      </span>
+
+                      <button
+                        onClick={handleTriggerInstagramBlock}
+                        className="px-2 py-0.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-black text-[9px] flex items-center gap-1 shadow-md shadow-red-600/30 active:scale-95 transition-all"
+                        title="Langsung picu kondisi screen time 1 jam"
+                      >
+                        <Lock className="w-2.5 h-2.5" />
+                        <span>Picu Batas 1 Jam (Blokir)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* UNLOCKED SUCCESS BANNER (SHOWN WHEN RETURNED FROM MOVEIT) */}
+                  {instagramUnlockedBanner && (
+                    <div className="mx-2.5 mt-2 p-2.5 rounded-2xl bg-[#ccff00]/15 border border-[#ccff00]/50 text-white flex items-center justify-between text-xs animate-fadeIn shrink-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-[#ccff00] text-black flex items-center justify-center font-bold shrink-0">
+                          <Check className="w-4 h-4 stroke-[3]" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-black text-[#ccff00] block">✓ LAYAR TERBUKA KEMBALI!</span>
+                          <span className="text-[9px] text-gray-200 block">MoveIt terverifikasi (+25 Coins 🪙). Jatah scroll diperpanjang 30 menit.</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setInstagramUnlockedBanner(false)}
+                        className="p-1 text-gray-400 hover:text-white"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* INSTAGRAM FEED SCROLLABLE CONTENT */}
+                  <div className="flex-1 overflow-y-auto pb-14 space-y-3">
+                    
+                    {/* Stories Tray */}
+                    <div className="pt-2.5 pb-2 px-3 flex items-center gap-3 overflow-x-auto border-b border-gray-900 scrollbar-none">
+                      {/* Your Story */}
+                      <div className="flex flex-col items-center gap-1 shrink-0 cursor-pointer">
+                        <div className="relative w-12 h-12 rounded-full p-0.5 border border-dashed border-gray-600">
+                          <img
+                            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+                            alt="Your story"
+                            className="w-11 h-11 rounded-full object-cover"
+                          />
+                          <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-blue-500 border border-black flex items-center justify-center text-[9px] font-bold text-white">
+                            +
+                          </div>
+                        </div>
+                        <span className="text-[9px] text-gray-300">Cerita Anda</span>
+                      </div>
+
+                      {/* Move2Earn App Story */}
+                      <div className="flex flex-col items-center gap-1 shrink-0 cursor-pointer">
+                        <div className="w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-[#ccff00] to-cyan-400 animate-pulse">
+                          <div className="w-11 h-11 rounded-full bg-black flex items-center justify-center p-0.5">
+                            <div className="w-full h-full rounded-full bg-[#182310] flex items-center justify-center text-[#ccff00] font-black text-[10px]">
+                              M2E
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[9px] text-[#ccff00] font-bold">@move2earn</span>
+                      </div>
+
+                      {/* Fitness Influencer Story */}
+                      <div className="flex flex-col items-center gap-1 shrink-0 cursor-pointer">
+                        <div className="w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
+                          <img
+                            src="https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=150&q=80"
+                            alt="Fitness"
+                            className="w-11 h-11 rounded-full object-cover p-0.5 bg-black"
+                          />
+                        </div>
+                        <span className="text-[9px] text-gray-300">@fajar_fit</span>
+                      </div>
+
+                      {/* Travel Story */}
+                      <div className="flex flex-col items-center gap-1 shrink-0 cursor-pointer">
+                        <div className="w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
+                          <img
+                            src="https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=150&q=80"
+                            alt="Bali"
+                            className="w-11 h-11 rounded-full object-cover p-0.5 bg-black"
+                          />
+                        </div>
+                        <span className="text-[9px] text-gray-300">@bali_travel</span>
+                      </div>
+                    </div>
+
+                    {/* Feed Post 1 */}
+                    <div className="border-b border-gray-900 pb-3">
+                      {/* Post Header */}
+                      <div className="px-3 py-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+                            alt="User"
+                            className="w-7 h-7 rounded-full object-cover ring-1 ring-gray-700"
+                          />
+                          <div>
+                            <span className="text-[11px] font-bold text-white block leading-none">fajardinda</span>
+                            <span className="text-[9px] text-gray-400">Seminyak, Bali</span>
+                          </div>
+                        </div>
+                        <span className="text-gray-500 font-bold text-xs">•••</span>
+                      </div>
+
+                      {/* Post Image */}
+                      <div className="relative aspect-square w-full bg-gray-950 overflow-hidden">
+                        <img
+                          src="https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=600&q=80"
+                          alt="Instagram Feed"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      {/* Post Actions */}
+                      <div className="px-3 pt-2 pb-1 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => setIsInstagramLiked(!isInstagramLiked)}
+                            className="transition-transform active:scale-125"
+                          >
+                            <Heart className={`w-5 h-5 ${isInstagramLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+                          </button>
+                          <MessageSquare className="w-5 h-5 text-white" />
+                          <Send className="w-5 h-5 text-white -rotate-12" />
+                        </div>
+                        <button onClick={() => setIsInstagramBookmarked(!isInstagramBookmarked)}>
+                          <Bookmark className={`w-5 h-5 ${isInstagramBookmarked ? 'fill-white text-white' : 'text-white'}`} />
+                        </button>
+                      </div>
+
+                      {/* Post Info */}
+                      <div className="px-3 space-y-1">
+                        <span className="text-[10px] font-bold text-white block">
+                          {isInstagramLiked ? '1.850 suka' : '1.849 suka'}
+                        </span>
+                        <p className="text-[10px] text-gray-200 leading-snug">
+                          <strong className="text-white mr-1.5 font-bold">fajardinda</strong>
+                          Santai sore menikmati suasana sambil scrolling feeds favorit ☕🌿 #bali #vibes #chill
+                        </p>
+                        <span className="text-[9px] text-gray-500 block">Lihat semua 32 komentar</span>
+                        <span className="text-[8px] text-gray-600 block uppercase">15 menit yang lalu</span>
+                      </div>
+                    </div>
+
+                    {/* Feed Post 2 (Reels Preview) */}
+                    <div className="px-3 pb-4">
+                      <div className="p-3 rounded-2xl bg-[#11141c] border border-gray-800 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300">
+                              Reels
+                            </span>
+                            <span className="text-[10px] font-bold text-white">@healthy_daily</span>
+                          </div>
+                          <span className="text-[9px] text-gray-500">Disarankan</span>
+                        </div>
+                        <p className="text-[10px] text-gray-300">
+                          Jangan duduk lebih dari 1 jam tanpa bergerak! Ini dampak buruk sedentary lifestyle bagi tubuh Anda.
+                        </p>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* DRAMATIC FULL-SCREEN BLOCK OVERLAY WHEN 1-HOUR SCREEN TIME EXCEEDED */}
+                  {isInstagramBlockingAnimation && (
+                    <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-fadeIn border-4 border-red-500">
+                      <div className="w-16 h-16 rounded-full bg-red-600/25 border-2 border-red-500 flex items-center justify-center mb-3 animate-bounce shadow-xl shadow-red-500/30">
+                        <Lock className="w-8 h-8 text-red-500 stroke-[2.5]" />
+                      </div>
+                      <div className="px-3 py-1 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 text-[10px] font-black uppercase tracking-wider mb-2 animate-pulse">
+                        Screen Time 1 Jam Tercapai
+                      </div>
+                      <h3 className="text-lg font-black text-white leading-tight">
+                        LAYAR INSTAGRAM DIBLOKIR OTOMATIS!
+                      </h3>
+                      <p className="text-xs text-gray-300 mt-2 max-w-[240px] leading-relaxed">
+                        Anda telah scrolling Instagram selama 1 jam penuh. Move2Earn Anti-Sedentary Shield mengunci layar Anda.
+                      </p>
+                      <div className="mt-3 p-2.5 rounded-xl bg-red-950/40 border border-red-500/30 text-[10px] text-amber-300 font-semibold max-w-[240px]">
+                        ⚡ Wajib menyelesaikan tantangan MoveIt untuk membuka kunci layar &amp; lanjut scrolling!
+                      </div>
+                      <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-400 font-mono">
+                        <div className="w-2 h-2 rounded-full bg-[#ccff00] animate-ping" />
+                        <span>Membuka MOVEIT Challenge...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* INSTAGRAM BOTTOM NAVIGATION BAR */}
+                  <div className="absolute bottom-0 inset-x-0 h-13 bg-black/95 backdrop-blur-md border-t border-gray-900 px-6 flex items-center justify-between z-30">
+                    <Home className="w-5 h-5 text-white" />
+                    <Search className="w-5 h-5 text-gray-400" />
+                    <Play className="w-5 h-5 text-gray-400" />
+                    <Heart className="w-5 h-5 text-gray-400" />
+                    <div className="w-5 h-5 rounded-full ring-1 ring-white overflow-hidden">
+                      <img
+                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+
                 </div>
               )}
 
@@ -2003,10 +2378,26 @@ export default function MobileDemoPage() {
                     {/* Header */}
                     <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-800/80 bg-[#0e1117]">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => setActiveTab('tracking')} className="text-gray-400 hover:text-white">
+                        <button 
+                          onClick={() => {
+                            if (isBlockedFromInstagram && !workoutCompleted) {
+                              if (soundEnabled) playSound('alert');
+                              alert('⚠️ Layar Terblokir! Anda tidak bisa keluar atau skip sebelum menyelesaikan gerakan MoveIt.');
+                              return;
+                            }
+                            setActiveTab('tracking');
+                          }} 
+                          className="text-gray-400 hover:text-white"
+                        >
                           <ChevronLeft className="w-5 h-5" />
                         </button>
                         <span className="text-xs font-bold text-white uppercase tracking-wider">MOVEIT Challenge</span>
+                        {isBlockedFromInstagram && (
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/40 flex items-center gap-1">
+                            <Lock className="w-2.5 h-2.5" />
+                            <span>IG Terblokir (1 Jam)</span>
+                          </span>
+                        )}
                       </div>
                       <Volume2 className="w-4 h-4 text-gray-400" />
                     </div>
@@ -2180,12 +2571,22 @@ export default function MobileDemoPage() {
                             <span className="text-[10px] text-gray-300 mt-1">Scroll pass terbuka untuk sesi berikutnya!</span>
                             
                             <div className="flex flex-col gap-2 w-full max-w-[220px] mt-3">
-                              <button
-                                onClick={() => handleSelectMoveItSession(moveItSessionNumber + 1)}
-                                className="w-full py-2 bg-[#ccff00] text-black font-extrabold text-xs rounded-xl shadow-lg shadow-[#ccff00]/30 hover:bg-[#b8e600]"
-                              >
-                                Sesi 1 Jam Berikutnya (+1 Jam)
-                              </button>
+                              {isBlockedFromInstagram ? (
+                                <button
+                                  onClick={handleUnlockAndReturnToInstagram}
+                                  className="w-full py-2.5 bg-[#ccff00] text-black font-black text-xs rounded-xl shadow-lg shadow-[#ccff00]/40 hover:bg-[#b8e600] flex items-center justify-center gap-1.5 animate-pulse"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5 fill-black" />
+                                  <span>Buka Kunci Layar (Lanjut Scroll IG)</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleSelectMoveItSession(moveItSessionNumber + 1)}
+                                  className="w-full py-2 bg-[#ccff00] text-black font-extrabold text-xs rounded-xl shadow-lg shadow-[#ccff00]/30 hover:bg-[#b8e600]"
+                                >
+                                  Sesi 1 Jam Berikutnya (+1 Jam)
+                                </button>
+                              )}
                               <button
                                 onClick={() => setActiveTab('tracking')}
                                 className="w-full py-2 bg-gray-800 text-white font-semibold text-xs rounded-xl hover:bg-gray-700"
@@ -2206,15 +2607,40 @@ export default function MobileDemoPage() {
                         <Maximize2 className="w-4 h-4 text-gray-400 cursor-pointer" />
                       </div>
 
-                      {/* Finish Workout CTA Button */}
-                      <button
-                        onClick={handleFinishWorkout}
-                        disabled={workoutCompleted}
-                        className="w-full py-3 rounded-2xl bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-xs shadow-lg shadow-[#ccff00]/25 flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all"
-                      >
-                        <span>Finish Workout</span>
-                        <ChevronRight className="w-4 h-4 stroke-[3]" />
-                      </button>
+                      {/* Anti-Skip Protection: Tombol Finish Workout DIHILANGKAN selama latihan berjalan */}
+                      {!workoutCompleted ? (
+                        <div className="w-full py-2.5 px-3 rounded-2xl bg-amber-500/15 border border-amber-500/35 text-amber-300 text-xs font-bold flex items-center justify-center gap-2 text-center shadow-lg shadow-amber-950/20">
+                          <Lock className="w-4 h-4 shrink-0 text-amber-400 animate-pulse" />
+                          <div className="text-left">
+                            <span className="block font-black text-[11px] text-amber-300">
+                              {isBlockedFromInstagram ? 'LAYAR INSTAGRAM TERBLOKIR' : 'TANTANGAN SEDANG BERJALAN'}
+                            </span>
+                            <span className="block text-[9px] text-gray-300 font-normal">
+                              Selesaikan video gerakan sampai tuntas. Tombol buka kunci aktif otomatis saat selesai!
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Tombol BARU MUNCUL setelah video selesai diputar / repetisi terpenuhi */
+                        isBlockedFromInstagram ? (
+                          <button
+                            onClick={handleUnlockAndReturnToInstagram}
+                            className="w-full py-3.5 rounded-2xl bg-[#ccff00] hover:bg-[#b8e600] text-black font-black text-xs shadow-xl shadow-[#ccff00]/40 flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95 animate-bounce"
+                          >
+                            <Sparkles className="w-4 h-4 fill-black" />
+                            <span>Selesai &amp; Buka Kunci Layar (Lanjut Scroll Instagram)</span>
+                            <ArrowRight className="w-4 h-4 stroke-[3]" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setActiveTab('tracking')}
+                            className="w-full py-3.5 rounded-2xl bg-[#ccff00] hover:bg-[#b8e600] text-black font-black text-xs shadow-xl shadow-[#ccff00]/40 flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-95"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Finish Workout (Kembali ke Tracking)</span>
+                          </button>
+                        )
+                      )}
 
                     </div>
                   </div>
@@ -2250,7 +2676,7 @@ export default function MobileDemoPage() {
                     {profileSubView === 'main' ? (
                       /* MAIN PROFILE (SCREENSHOT 4 + UPGRADE PRO + HELP & SIGNOUT) */
                       <div className="space-y-4">
-                        {/* Alex Profile Card */}
+                        {/* fajar Profile Card */}
                         <div className="p-4 rounded-3xl bg-[#121620] border border-gray-800 flex flex-col items-center text-center relative">
                           <div className="relative w-16 h-16 rounded-full bg-gradient-to-tr from-gray-700 to-gray-500 overflow-hidden mb-2 border-2 border-[#ccff00]">
                             <img 
@@ -3069,9 +3495,18 @@ export default function MobileDemoPage() {
               </div>
 
               {/* ============================================================== */}
-              {/* THE 5 BOTTOM NAVIGATION TABS */}
+              {/* THE 5 BOTTOM NAVIGATION TABS (HIDDEN DURING INSTAGRAM SIMULATION) */}
               {/* ============================================================== */}
-              <div className="absolute bottom-0 inset-x-0 h-16 bg-[#090c12]/95 backdrop-blur-md border-t border-gray-800/80 px-2 flex items-center justify-around z-30 select-none">
+              {!simulatedExternalApp && (
+                isBlockedFromInstagram && !workoutCompleted ? (
+                  <div className="absolute bottom-0 inset-x-0 h-16 bg-black/95 backdrop-blur-md border-t border-red-500/40 px-3 flex items-center justify-center z-30 select-none shadow-2xl">
+                    <div className="flex items-center gap-2 text-amber-300 text-[11px] font-black tracking-wide">
+                      <Lock className="w-4 h-4 text-amber-400 animate-pulse" />
+                      <span>LAYAR TERKUNCI • Selesaikan MoveIt untuk Buka Kunci</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="absolute bottom-0 inset-x-0 h-16 bg-[#090c12]/95 backdrop-blur-md border-t border-gray-800/80 px-2 flex items-center justify-around z-30 select-none">
                 
                 {/* 1. Tracking Tab */}
                 <button
@@ -3162,7 +3597,9 @@ export default function MobileDemoPage() {
                   <span className="text-[9px] font-semibold">Profile</span>
                 </button>
 
-              </div>
+                  </div>
+                )
+              )}
 
               {/* Home Gesture Bar */}
               <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/40 rounded-full z-40 pointer-events-none" />
@@ -3303,13 +3740,31 @@ export default function MobileDemoPage() {
                 </p>
               </button>
 
+              {/* Button 4B: Demo Block Time Instagram (1 Jam) */}
+              <button
+                onClick={handleLaunchInstagramDemo}
+                className="p-3.5 rounded-2xl bg-gradient-to-br from-purple-950/50 via-pink-950/40 to-[#131926] border border-pink-500/60 hover:border-pink-400 text-left transition-all group shadow-lg shadow-pink-950/30"
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-pink-300 mb-1">
+                  <span className="flex items-center gap-1.5">
+                    <InstagramLogo className="w-4 h-4" />
+                    4B. 🚨 Demo Block Time: Instagram (1 Jam)
+                  </span>
+                  <Shield className="w-4 h-4 text-pink-400 group-hover:scale-110 transition-transform" />
+                </div>
+                <p className="text-[11px] text-gray-300">
+                  Luar APK Move2Earn: Buka Instagram hingga 1 jam, layar otomatis terblokir paksa ke MoveIt tanpa tombol skip!
+                </p>
+              </button>
+
               {/* Button 5: MoveIt Challenge */}
               <button
                 onClick={() => {
                   setIsLoggedIn(true);
                   setActiveTab('moveit');
+                  setIsBlockedFromInstagram(false);
                   setWorkoutSecondsLeft(30);
-                  setRepCount(23);
+                  setRepCount(0);
                   setWorkoutCompleted(false);
                   if (moveItGuideVideoRef.current) {
                     moveItGuideVideoRef.current.currentTime = 0;
