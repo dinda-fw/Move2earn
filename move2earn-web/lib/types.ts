@@ -5,6 +5,21 @@ export interface Profile {
   created_at: string;
 }
 
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  avatar_url?: string;
+  fitness_level: 'Beginner' | 'Intermediate' | 'Advanced';
+  daily_goal_minutes: number;
+  is_logged_in: boolean;
+  member_since: string;
+  tier: 'Free Member' | 'MoveIt Pro 👑';
+  height_cm: number;
+  weight_kg: number;
+  phone_number?: string;
+}
+
 export interface UserSettings {
   user_id: string;
   threshold_minutes: number;

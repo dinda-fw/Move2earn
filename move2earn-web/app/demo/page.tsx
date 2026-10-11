@@ -1554,7 +1554,7 @@ export default function MobileDemoPage() {
                               {[
                                 { id: 'bodyweight' as EquipmentType, label: 'Tanpa Alat (Bodyweight)', icon: '🧘' },
                                 { id: 'dumbbell' as EquipmentType, label: 'Dumbbell', icon: '🏋️' },
-                                { id: 'barbell' as EquipmentType, label: 'Barbell', icon: '🔩' },
+                                { id: 'barbell' as EquipmentType, label: 'Barbell/botol', icon: '🔩' },
                                 { id: 'pull_up_bar' as EquipmentType, label: 'Pull-Up Bar', icon: '⛓️' },
                                 { id: 'resistance_band' as EquipmentType, label: 'Resistance Bands', icon: '➰' },
                                 { id: 'gym_machine' as EquipmentType, label: 'Gym Machine', icon: '⚙️' },

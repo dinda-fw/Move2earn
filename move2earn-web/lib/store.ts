@@ -6,7 +6,8 @@ import {
   DashboardSummary,
   ActivitySummary,
   WorkoutSession,
-  ScreenTimeSummary
+  ScreenTimeSummary,
+  UserProfile
 } from './types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
@@ -158,6 +159,22 @@ const STORAGE_KEYS = {
   REDEMPTIONS: 'm2e_redemptions',
   SESSIONS: 'm2e_sessions',
   SCREENTIME: 'm2e_screentime',
+  PROFILE: 'm2e_user_profile',
+};
+
+const DEFAULT_USER_PROFILE: UserProfile = {
+  id: 'usr-1',
+  name: 'Alex Pratama',
+  email: 'alex@move2earn.app',
+  avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+  fitness_level: 'Beginner',
+  daily_goal_minutes: 35,
+  is_logged_in: true,
+  member_since: 'Oktober 2026',
+  tier: 'MoveIt Pro 👑',
+  height_cm: 172,
+  weight_kg: 68,
+  phone_number: '+62 812-3456-7890'
 };
 
 // Client-side local storage helper for demo persistence across page reloads
@@ -451,5 +468,47 @@ export const Move2EarnStore = {
     txs.unshift(newTx);
     setStored(STORAGE_KEYS.TRANSACTIONS, txs);
     return { success: true, newBalance: this.getWalletSummary().balance };
+  },
+
+  getUserProfile(): UserProfile {
+    return getStored<UserProfile>(STORAGE_KEYS.PROFILE, DEFAULT_USER_PROFILE);
+  },
+
+  updateUserProfile(updates: Partial<UserProfile>): UserProfile {
+    const current = this.getUserProfile();
+    const updated = { ...current, ...updates };
+    setStored(STORAGE_KEYS.PROFILE, updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+    }
+    return updated;
+  },
+
+  loginUser(email: string, name?: string): UserProfile {
+    const current = this.getUserProfile();
+    const updated: UserProfile = {
+      ...current,
+      email,
+      name: name || current.name || 'Alex Pratama',
+      is_logged_in: true
+    };
+    setStored(STORAGE_KEYS.PROFILE, updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+    }
+    return updated;
+  },
+
+  logoutUser(): UserProfile {
+    const current = this.getUserProfile();
+    const updated: UserProfile = {
+      ...current,
+      is_logged_in: false
+    };
+    setStored(STORAGE_KEYS.PROFILE, updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+    }
+    return updated;
   }
 };

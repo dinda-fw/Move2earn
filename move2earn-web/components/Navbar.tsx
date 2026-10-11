@@ -11,28 +11,32 @@ import {
   Wallet, 
   Gift, 
   TicketCheck, 
-  ShieldAlert, 
   Dumbbell,
   Menu,
-  X
+  X,
+  User
 } from 'lucide-react';
 import { Move2EarnStore } from '@/lib/store';
+import { UserProfile } from '@/lib/types';
 
 export default function Navbar() {
   const pathname = usePathname();
   const [balance, setBalance] = useState<number>(75);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const updateBalance = () => {
+    const updateNavbarData = () => {
       const summary = Move2EarnStore.getWalletSummary();
       setBalance(summary.balance);
+      const profile = Move2EarnStore.getUserProfile();
+      setUserProfile(profile);
     };
-    updateBalance();
-    window.addEventListener('storage', updateBalance);
-    const interval = setInterval(updateBalance, 2000);
+    updateNavbarData();
+    window.addEventListener('storage', updateNavbarData);
+    const interval = setInterval(updateNavbarData, 2000);
     return () => {
-      window.removeEventListener('storage', updateBalance);
+      window.removeEventListener('storage', updateNavbarData);
       clearInterval(interval);
     };
   }, []);
@@ -44,7 +48,7 @@ export default function Navbar() {
     { href: '/wallet', label: 'Wallet', icon: Wallet },
     { href: '/rewards', label: 'Rewards', icon: Gift },
     { href: '/redemptions', label: 'My Vouchers', icon: TicketCheck },
-    { href: '/admin', label: 'Admin', icon: ShieldAlert },
+    { href: '/profile', label: 'Profil', icon: User },
   ];
 
   return (
@@ -75,7 +79,7 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-green-500/20 text-green-300 border border-green-500/50 shadow-md shadow-green-500/10'
                       : 'text-gray-300 hover:text-white hover:bg-gray-800/60'
@@ -88,17 +92,38 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Right Action: Move Coins Balance */}
-          <div className="flex items-center gap-3">
+          {/* Right Action: Move Coins Balance & User Profile */}
+          <div className="flex items-center gap-2.5">
             <Link
               href="/wallet"
-              className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/30 px-3.5 py-1.5 rounded-full hover:border-amber-400 transition-colors shadow-sm"
+              className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/30 px-3 py-1.5 rounded-full hover:border-amber-400 transition-colors shadow-sm"
             >
               <Coins className="w-4 h-4 text-amber-400 animate-pulse" />
               <div className="text-right">
-                <span className="text-xs text-amber-200/70 font-mono block -mb-1 leading-none">Coins</span>
-                <span className="text-sm font-bold text-amber-300 font-mono">{balance}</span>
+                <span className="text-[10px] text-amber-200/70 font-mono block -mb-1 leading-none">Coins</span>
+                <span className="text-xs font-bold text-amber-300 font-mono">{balance}</span>
               </div>
+            </Link>
+
+            {/* User Profile Pill */}
+            <Link
+              href="/profile"
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-full border transition-all ${
+                pathname === '/profile'
+                  ? 'bg-green-500/20 border-green-500/60 text-green-300'
+                  : 'bg-gray-900/80 border-gray-800 hover:border-gray-700 text-gray-300 hover:text-white'
+              }`}
+            >
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-gray-700 to-gray-500 overflow-hidden border border-[#ccff00] flex-shrink-0">
+                <img
+                  src={userProfile?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
+                  alt={userProfile?.name || 'User'}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <span className="hidden xl:inline text-xs font-semibold max-w-[100px] truncate">
+                {userProfile?.is_logged_in ? userProfile.name.split(' ')[0] : 'Masuk'}
+              </span>
             </Link>
 
             {/* Mobile Menu Toggle */}
