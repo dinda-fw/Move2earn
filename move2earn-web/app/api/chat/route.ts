@@ -10,8 +10,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // Get API Key from server environment
-    const apiKey = (process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '').trim();
+    // Get API Key from server environment (stripping accidental quotes or whitespace)
+    const apiKey = (process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '')
+      .replace(/^["']|["']$/g, '')
+      .trim();
 
     // If API key is not configured or still placeholder
     if (!apiKey || apiKey === 'your_gemini_api_key_here') {
@@ -38,69 +40,56 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    // Try Gemini 2.0 Flash first, fallback to Gemini 1.5 Flash
-    const primaryModel = 'gemini-2.0-flash';
-    const fallbackModel = 'gemini-1.5-flash';
+    // Priority models list (Gemini 3.8 Flash is current active generation in v1beta)
+    const candidateModels = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
-    let geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${primaryModel}:generateContent?key=${apiKey}`;
+    let candidateText = '';
+    let modelUsed = candidateModels[0];
 
-    let response = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: systemPrompt }],
-        },
-        contents,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 600,
-        },
-      }),
-    });
+    for (const model of candidateModels) {
+      try {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    let modelUsed = primaryModel;
+        const response = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: systemPrompt }],
+            },
+            contents,
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 600,
+            },
+          }),
+        });
 
-    // If 2.0 fails or is unavailable, attempt 1.5 Flash
-    if (!response.ok && response.status === 404) {
-      geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent?key=${apiKey}`;
-      response = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 600 },
-        }),
-      });
-      modelUsed = fallbackModel;
+        if (response.ok) {
+          const data = await response.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            candidateText = text;
+            modelUsed = model;
+            break;
+          }
+        } else {
+          const errText = await response.text();
+          console.warn(`Model ${model} returned status ${response.status}:`, errText);
+        }
+      } catch (err) {
+        console.warn(`Request failed for model ${model}:`, err);
+      }
     }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.warn(`Gemini API error [${response.status}]:`, errorText);
-      
-      // Fallback gracefully on API key invalid or rate limit
-      return NextResponse.json({
-        success: true,
-        reply: generateLocalFallbackReply(prompt, context),
-        isLiveAi: false,
-        apiKeyConfigured: true,
-        error: `Gemini API response: ${response.statusText}`,
-        modelUsed: 'local-coach-fallback',
-      });
-    }
-
-    const data = await response.json();
-    const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!candidateText) {
       return NextResponse.json({
         success: true,
         reply: generateLocalFallbackReply(prompt, context),
         isLiveAi: false,
+        apiKeyConfigured: true,
         modelUsed: 'local-coach-fallback',
       });
     }

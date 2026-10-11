@@ -89,11 +89,6 @@ export function generateLocalFallbackReply(prompt: string, context: CoachUserCon
     reply = `Semangat luar biasa, ${name}! Dengan streak ${context.dayStreak ?? 7} hari dan ${context.walletBalance ?? 75} Move Coins, kamu berada di jalur yang tepat. Hari ini kamu sudah bergerak ${activeMin} menit—hanya butuh ${remainingMin} menit lagi untuk menuntaskan 100% target harianmu! Ada gerakan spesifik yang ingin kamu tanyakan? ✨`;
   }
 
-  const hasKey = Boolean(process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
-  if (!hasKey) {
-    reply += `\n\n💡 (Mode Demo • Masukkan GEMINI_API_KEY di file .env.local untuk mengaktifkan respon live dari Google Gemini AI)`;
-  }
-
   return reply;
 }
 
@@ -128,7 +123,7 @@ export async function sendCoachChatMessage(
         return {
           reply: data.reply,
           isLiveAi: Boolean(data.isLiveAi),
-          modelUsed: data.modelUsed || 'gemini-2.0-flash',
+          modelUsed: data.modelUsed || 'gemini-3.8-flash',
         };
       }
     }
@@ -137,11 +132,11 @@ export async function sendCoachChatMessage(
   }
 
   // 2. Client-side direct call if NEXT_PUBLIC_GEMINI_API_KEY is available
-  const clientApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  if (clientApiKey && clientApiKey.trim() !== '' && clientApiKey !== 'your_gemini_api_key_here') {
+  const clientApiKey = (process.env.NEXT_PUBLIC_GEMINI_API_KEY || '').replace(/^["']|["']$/g, '').trim();
+  if (clientApiKey && clientApiKey !== 'your_gemini_api_key_here') {
     try {
       const systemPrompt = buildCoachSystemInstruction(context);
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${clientApiKey.trim()}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${clientApiKey}`;
 
       const contents = [
         ...history.slice(-4).map((msg) => ({
@@ -176,7 +171,7 @@ export async function sendCoachChatMessage(
           return {
             reply: text,
             isLiveAi: true,
-            modelUsed: 'gemini-2.0-flash',
+            modelUsed: 'gemini-3.8-flash',
           };
         }
       }

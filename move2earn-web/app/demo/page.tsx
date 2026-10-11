@@ -896,7 +896,7 @@ export default function MobileDemoPage() {
         {
           id: `coach-${Date.now()}`,
           sender: 'coach',
-          text: `Halo ${userName}, tetap semangat bergerak ya! Jika terjadi kendala koneksi, pastikan API key Gemini telah disiapkan di file .env.local.`,
+          text: `Halo ${userName}, tetap semangat bergerak ya! Coach Max siap memantau performa latihan dan target harianmu hari ini. 💪`,
           time: currentTime,
           isLiveAi: false,
         }
