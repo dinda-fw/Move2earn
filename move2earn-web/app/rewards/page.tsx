@@ -49,7 +49,7 @@ export default function RewardsPage() {
             </span>
           </div>
           <p className="text-xs text-gray-400 mt-1 max-w-xl">
-            Tukarkan Move Coins yang kamu dapatkan dari menuntaskan intervensi workout menjadi saldo e-wallet dan voucher belanja nyata.
+            Tukarkan Move Coins yang kamu dapatkan dari menuntaskan intervensi workout menjadi voucher gym dan healty food UMKM terdekat.
           </p>
         </div>
 
@@ -101,7 +101,7 @@ export default function RewardsPage() {
                   <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
                     {reward.is_demo && (
                       <span className="bg-amber-500/90 text-black text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow">
-                        DEMO REWARD
+                        REWARD
                       </span>
                     )}
                   </div>

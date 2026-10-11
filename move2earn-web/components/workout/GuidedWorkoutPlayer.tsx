@@ -21,7 +21,11 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Camera,
+  Video,
+  Eye,
+  ShieldAlert
 } from 'lucide-react';
 import Link from 'next/link';
 import { getYouTubeEmbedUrl } from '@/lib/youtube';
@@ -100,6 +104,48 @@ export default function GuidedWorkoutPlayer({ plan, onClose, onFinish }: GuidedW
   const startTimeRef = useRef<string>(new Date().toISOString());
   const completedSetsCountRef = useRef(0);
 
+  // Camera Motion Monitoring State (Mirip MoveIt)
+  const [isWebcamActive, setIsWebcamActive] = useState(false);
+  const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
+  const webcamStreamRef = useRef<MediaStream | null>(null);
+
+  const requestWebcamAccess = () => {
+    if (!navigator.mediaDevices?.getUserMedia) return;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+      .then((stream) => {
+        webcamStreamRef.current = stream;
+        setIsWebcamActive(true);
+        if (cameraVideoRef.current) {
+          cameraVideoRef.current.srcObject = stream;
+          cameraVideoRef.current.play().catch(() => {});
+        }
+      })
+      .catch((err) => {
+        console.warn('Workout camera access denied or unavailable:', err);
+        setIsWebcamActive(false);
+      });
+  };
+
+  // Request webcam on mount & stop on unmount
+  useEffect(() => {
+    requestWebcamAccess();
+
+    return () => {
+      if (webcamStreamRef.current) {
+        webcamStreamRef.current.getTracks().forEach((track) => track.stop());
+        webcamStreamRef.current = null;
+      }
+    };
+  }, []);
+
+  // Ensure camera feed stays bound to video element across set/exercise changes
+  useEffect(() => {
+    if (isWebcamActive && webcamStreamRef.current && cameraVideoRef.current) {
+      cameraVideoRef.current.srcObject = webcamStreamRef.current;
+      cameraVideoRef.current.play().catch(() => {});
+    }
+  }, [isWebcamActive, currentExerciseIndex, currentSet, isResting]);
+
   const currentPlanExercise = plan.exercises[currentExerciseIndex] || plan.exercises[0];
   const totalExercises = plan.exercises.length;
   const totalPlannedSets = plan.exercises.reduce((acc, cur) => acc + cur.sets, 0);
@@ -112,9 +158,9 @@ export default function GuidedWorkoutPlayer({ plan, onClose, onFinish }: GuidedW
     }
   }, [currentExerciseIndex, currentSet, isResting]);
 
-  // Main countdown ticking timer
+  // Main countdown ticking timer (Hanya berjalan jika kamera aktif saat latihan)
   useEffect(() => {
-    if (isCompleted || isPaused || showExitConfirm) return;
+    if (isCompleted || isPaused || showExitConfirm || (!isResting && !isWebcamActive)) return;
 
     const timer = setInterval(() => {
       setTotalElapsedTime(prev => prev + 1);
@@ -144,7 +190,7 @@ export default function GuidedWorkoutPlayer({ plan, onClose, onFinish }: GuidedW
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isResting, isPaused, isCompleted, showExitConfirm, currentExerciseIndex, currentSet]);
+  }, [isResting, isPaused, isCompleted, showExitConfirm, currentExerciseIndex, currentSet, isWebcamActive]);
 
   const handleCompleteSet = () => {
     completedSetsCountRef.current += 1;
@@ -250,6 +296,20 @@ export default function GuidedWorkoutPlayer({ plan, onClose, onFinish }: GuidedW
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Camera Status Badge */}
+          <button
+            onClick={requestWebcamAccess}
+            className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border flex items-center gap-1.5 transition-all ${
+              isWebcamActive
+                ? 'bg-black/70 border-[#ccff00]/40 text-[#ccff00]'
+                : 'bg-amber-500/20 border-amber-400/50 text-amber-300 animate-pulse'
+            }`}
+            title="Status Kamera Fisik"
+          >
+            <Camera className="w-3 h-3" />
+            <span>{isWebcamActive ? 'Kamera Aktif' : 'Nyalakan Kamera'}</span>
+          </button>
+
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
             className="p-2 rounded-xl bg-gray-800/80 text-gray-300 hover:text-white"
@@ -374,67 +434,141 @@ export default function GuidedWorkoutPlayer({ plan, onClose, onFinish }: GuidedW
                 </p>
               </div>
 
-              {/* Central Exercise Visual & Timer Card */}
-              <div className="p-6 rounded-3xl bg-gradient-to-br from-[#121825] to-[#0d121d] border border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl">
+              {/* Central Exercise Split Visual & Live Motion Camera Card */}
+              <div className="p-4 sm:p-6 rounded-3xl bg-gradient-to-br from-[#121825] to-[#0d121d] border border-gray-800 space-y-4 shadow-xl">
                 
-                {/* Visual / Movement Demonstration */}
-                <div 
-                  onClick={() => currentPlanExercise.exercise.full_video_url && setShowVideoModal(true)}
-                  className={`relative w-40 h-40 sm:w-44 sm:h-44 rounded-2xl bg-black/50 border border-gray-800/80 flex flex-col items-center justify-center overflow-hidden shrink-0 group ${
-                    currentPlanExercise.exercise.full_video_url ? 'cursor-pointer hover:border-[#ccff00]/60' : ''
-                  }`}
-                  title={currentPlanExercise.exercise.full_video_url ? "Klik untuk melihat video tutorial" : undefined}
-                >
-                  {currentPlanExercise.exercise.full_video_image_url ? (
-                    <>
-                      <img
-                        src={currentPlanExercise.exercise.full_video_image_url}
-                        alt={currentPlanExercise.exercise.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-2 text-center group-hover:bg-black/20 transition-colors">
-                        <div className="w-10 h-10 rounded-full bg-[#ccff00] text-black flex items-center justify-center font-bold shadow-lg mb-1">
-                          <Play className="w-4 h-4 ml-0.5 fill-black" />
+                {/* DUAL SPLIT: PANDUAN GERAKAN + LIVE CAMERA PEMANTAU GERAKAN */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                  
+                  {/* SISI KIRI: Panduan Gerakan (Video Tutorial / Animasi) */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                      <Video className="w-3.5 h-3.5 text-[#ccff00]" />
+                      1. Panduan Gerakan (Tutorial)
+                    </span>
+
+                    <div 
+                      onClick={() => currentPlanExercise.exercise.full_video_url && setShowVideoModal(true)}
+                      className={`relative w-full h-44 sm:h-48 rounded-2xl bg-black/50 border border-gray-800/80 flex flex-col items-center justify-center overflow-hidden group ${
+                        currentPlanExercise.exercise.full_video_url ? 'cursor-pointer hover:border-[#ccff00]/60' : ''
+                      }`}
+                      title={currentPlanExercise.exercise.full_video_url ? "Klik untuk melihat video tutorial" : undefined}
+                    >
+                      {currentPlanExercise.exercise.full_video_image_url ? (
+                        <>
+                          <img
+                            src={currentPlanExercise.exercise.full_video_image_url}
+                            alt={currentPlanExercise.exercise.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-2 text-center group-hover:bg-black/20 transition-colors">
+                            <div className="w-10 h-10 rounded-full bg-[#ccff00] text-black flex items-center justify-center font-bold shadow-lg mb-1">
+                              <Play className="w-4 h-4 ml-0.5 fill-black" />
+                            </div>
+                            <span className="text-[9px] font-bold text-white uppercase tracking-wider bg-black/70 px-2.5 py-0.5 rounded-full border border-white/10">
+                              Putar Video Tutorial
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-4 text-center">
+                          <div className="w-14 h-14 rounded-2xl bg-[#ccff00]/15 text-[#ccff00] flex items-center justify-center font-bold text-2xl mb-1">
+                            🏃
+                          </div>
+                          <span className="text-[10px] font-bold text-gray-300 capitalize">
+                            {currentPlanExercise.exercise.category}
+                          </span>
                         </div>
-                        <span className="text-[9px] font-bold text-white uppercase tracking-wider bg-black/70 px-2 py-0.5 rounded-full border border-white/10">
-                          Video Tutorial
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center p-4 text-center">
-                      <div className="w-16 h-16 rounded-2xl bg-[#ccff00]/15 text-[#ccff00] flex items-center justify-center font-bold text-3xl mb-2">
-                        🏃
-                      </div>
-                      <span className="text-[10px] font-bold text-gray-300 capitalize">
-                        {currentPlanExercise.exercise.category}
-                      </span>
-                      <span className="text-[9px] text-gray-500 block">
-                        Alat: {currentPlanExercise.exercise.equipment.join(', ')}
-                      </span>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  {/* SISI KANAN: Live Camera Monitoring (Mirip Fitur MoveIt) */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                      <Camera className="w-3.5 h-3.5" />
+                      2. Live Camera Monitoring
+                    </span>
+
+                    <div className="relative w-full h-44 sm:h-48 rounded-2xl overflow-hidden bg-black/70 border border-dashed border-[#ccff00]/50 flex items-center justify-center">
+                      <video
+                        ref={cameraVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`w-full h-full object-cover -scale-x-100 ${isWebcamActive ? 'block' : 'hidden'}`}
+                      />
+
+                      {/* When Camera is ACTIVE */}
+                      {isWebcamActive ? (
+                        <>
+                          <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/80 border border-[#ccff00]/40 text-[#ccff00] text-[9px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#ccff00] animate-ping" />
+                            <span>GERAKAN DIPANTAU</span>
+                          </div>
+                          <div className="absolute bottom-2 right-2 z-10 px-2 py-0.5 rounded-md bg-black/80 text-[9px] text-gray-300 font-mono border border-gray-700">
+                            Set {currentSet}/{currentPlanExercise.sets}
+                          </div>
+                        </>
+                      ) : (
+                        /* When Camera is INACTIVE */
+                        <div className="relative w-full h-full flex flex-col items-center justify-center p-3 text-center bg-black/80 backdrop-blur-[1px]">
+                          <div className="w-10 h-10 rounded-full border-2 border-amber-400 bg-amber-400/15 flex items-center justify-center mb-1.5 animate-pulse text-amber-400">
+                            <Camera className="w-5 h-5" />
+                          </div>
+                          <span className="text-xs font-bold text-white">Kamera Belum Aktif</span>
+                          <span className="text-[10px] text-gray-300 max-w-[200px] mt-0.5 leading-tight">
+                            Timer & repetisi dijeda. Nyalakan kamera agar gerakan dapat dipantau.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={requestWebcamAccess}
+                            className="mt-2.5 px-3 py-1.5 rounded-xl bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-[11px] flex items-center gap-1.5 shadow-md shadow-[#ccff00]/25 transition-all active:scale-95"
+                          >
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>Nyalakan Kamera</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                 </div>
 
-                {/* Countdown Timer or Reps Display */}
-                <div className="flex-1 flex flex-col items-center justify-center text-center">
-                  <div className="text-6xl font-black font-mono text-white tracking-tighter">
-                    {exerciseSecondsLeft < 10 ? `0${exerciseSecondsLeft}` : exerciseSecondsLeft}
-                    <span className="text-sm text-gray-500 font-sans font-normal ml-1">detik</span>
+                {/* TIMER & SET COMPLETION BAR */}
+                <div className="pt-3 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-center sm:text-left">
+                    <div className="flex items-center gap-2 justify-center sm:justify-start">
+                      <span className={`text-4xl sm:text-5xl font-black font-mono tracking-tight transition-colors ${
+                        isWebcamActive ? 'text-white' : 'text-amber-400 animate-pulse'
+                      }`}>
+                        {exerciseSecondsLeft < 10 ? `0${exerciseSecondsLeft}` : exerciseSecondsLeft}
+                      </span>
+                      <span className="text-xs text-gray-400 font-sans">detik tersisa</span>
+                    </div>
+                    <span className="text-[11px] block mt-0.5 text-gray-400">
+                      {isWebcamActive ? (
+                        <span className="text-emerald-400 font-semibold flex items-center gap-1 justify-center sm:justify-start">
+                          <CheckCircle2 className="w-3 h-3" /> Kamera aktif • Selesaikan {currentPlanExercise.reps_or_duration}
+                        </span>
+                      ) : (
+                        <span className="text-amber-400 font-semibold flex items-center gap-1 justify-center sm:justify-start">
+                          <AlertCircle className="w-3 h-3" /> Gerakan dijeda • Menunggu kamera aktif
+                        </span>
+                      )}
+                    </span>
                   </div>
-                  <span className="text-[11px] text-gray-400 mt-1 block">
-                    Atau selesaikan {currentPlanExercise.reps_or_duration} dengan postur stabil
-                  </span>
 
                   {/* Complete Set Big Action Button */}
                   <button
                     onClick={handleCompleteSet}
-                    className="mt-4 w-full py-3.5 rounded-2xl bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-sm shadow-lg shadow-[#ccff00]/25 flex items-center justify-center gap-2 transition-all active:scale-95"
+                    className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-[#ccff00] hover:bg-[#b8e600] text-black font-extrabold text-sm shadow-lg shadow-[#ccff00]/25 flex items-center justify-center gap-2 transition-all active:scale-95"
                   >
                     <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
                     <span>Selesaikan Set {currentSet}</span>
                   </button>
                 </div>
+
               </div>
 
               {/* Form Instruction Card */}
